@@ -12,6 +12,7 @@ This folder contains the detailed design and operating docs for the Lead Nurture
 - [Campaign ingestion](campaign-ingestion.md) — how website crawling and categorization work.
 - [Lead scoring and observations](lead-scoring-and-observations.md) — how messages become scored observations.
 - [Email integration roadmap](email-integration-roadmap.md) — how to reuse the chat prototype for async email nurturing.
+- [Teammate repo comparison: rag-b2b-crm](teammate-repo-comparison-rag-b2b-crm.md) — how this prototype compares to and can extend the broader CRM repo.
 - [Development](development.md) — tests, local development, and contribution notes.
 
 ## Prototype goal
