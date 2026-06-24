@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import deque
 from dataclasses import dataclass, field
 from urllib.parse import urldefrag, urljoin, urlparse
@@ -68,13 +69,50 @@ def should_skip_url(url: str, allowed_domains: set[str]) -> bool:
     return False
 
 
+def _metadata_text(soup: BeautifulSoup) -> str:
+    values: list[str] = []
+    if soup.title and soup.title.string:
+        values.append(soup.title.string)
+    for attrs in (
+        {"name": "description"},
+        {"property": "og:title"},
+        {"property": "og:description"},
+        {"name": "twitter:title"},
+        {"name": "twitter:description"},
+    ):
+        tag = soup.find("meta", attrs=attrs)
+        content = tag.get("content") if tag else None
+        if content:
+            values.append(content)
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        if not script.string:
+            continue
+        try:
+            payload = json.loads(script.string)
+        except json.JSONDecodeError:
+            continue
+        items = payload if isinstance(payload, list) else [payload]
+        for item in items:
+            if isinstance(item, dict):
+                for key in ("name", "description", "url"):
+                    value = item.get(key)
+                    if isinstance(value, str):
+                        values.append(value)
+    return normalize_text(" ".join(dict.fromkeys(values)))
+
+
 def extract_document(url: str, html: str, company_name: str, target_persona: str | None = None, offer: str | None = None) -> CrawledDocument:
     soup = BeautifulSoup(html, "html.parser")
+    title = soup.title.string.strip() if soup.title and soup.title.string else url
+    metadata_text = _metadata_text(soup)
     for tag in soup(["script", "style", "nav", "footer", "noscript", "svg"]):
         tag.decompose()
-    title = soup.title.string.strip() if soup.title and soup.title.string else url
     main = soup.find("main") or soup.find("article") or soup.body or soup
-    text = normalize_text(main.get_text(" "))
+    body_text = normalize_text(main.get_text(" "))
+    text_parts = [metadata_text]
+    if len(body_text.split()) >= 5 and body_text.lower() not in {"edit with"}:
+        text_parts.append(body_text)
+    text = normalize_text(" ".join(part for part in text_parts if part))
     metadata = categorize_page(url=url, title=title, text=text)
     metadata.update({"company_name": company_name})
     if target_persona:
