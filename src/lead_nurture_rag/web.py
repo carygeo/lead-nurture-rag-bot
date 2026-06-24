@@ -55,10 +55,11 @@ if prompt := st.chat_input("Write as the potential lead..."):
     st.session_state.messages.append({"role": "assistant", "content": reply})
     with st.chat_message("assistant"):
         st.markdown(reply)
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Temperature", data["lead"]["temperature"])
     c2.metric("Score", data["lead"]["score"])
     c3.metric("Next action", data["next_action"])
+    c4.metric("Response mode", data.get("response_model") or data.get("response_mode", "unknown"))
     with st.expander("Retrieved context / rationale"):
         st.write(data["rationale"])
         st.json(data["retrieved_context"])

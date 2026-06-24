@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from typing import Any
 
 from openai import OpenAI
 
@@ -60,10 +61,20 @@ def score_lead(
 
 
 class LeadNurtureAgent:
-    def __init__(self, knowledge_base: KnowledgeBase, model: str | None = None):
+    def __init__(
+        self,
+        knowledge_base: KnowledgeBase,
+        model: str | None = None,
+        client: Any | None = None,
+    ):
         self.knowledge_base = knowledge_base
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self._client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
+        if client is not None:
+            self._client = client
+        elif os.getenv("OPENAI_API_KEY"):
+            self._client = OpenAI()
+        else:
+            self._client = None
 
     def respond(self, lead_id: str, history: list[str], message: str) -> AgentTurnResult:
         observation = build_observation(lead_id=lead_id, channel="chat", message=message, history=history)
@@ -72,7 +83,14 @@ class LeadNurtureAgent:
         retrieved = self.knowledge_base.search(retrieval_query, k=4)
         lead = score_lead(lead_id, history, message, analysis)
         next_action = self._next_action(lead)
-        reply = self._llm_reply(lead, history, message, retrieved, next_action) if self._client else self._fallback_reply(lead, message, retrieved, next_action)
+        if self._client:
+            reply = self._llm_reply(lead, history, message, retrieved, next_action)
+            response_mode = "llm"
+            response_model = self.model
+        else:
+            reply = self._fallback_reply(lead, message, retrieved, next_action)
+            response_mode = "fallback"
+            response_model = None
         rationale = (
             f"{lead.temperature} lead scored {lead.score}; intent={analysis.intent}; "
             f"sentiment={analysis.sentiment.label}/{analysis.sentiment.score}; "
@@ -85,6 +103,8 @@ class LeadNurtureAgent:
             next_action=next_action,
             observation=analysis,
             rationale=rationale,
+            response_mode=response_mode,
+            response_model=response_model,
         )
 
     def _next_action(self, lead: LeadState) -> str:
@@ -97,9 +117,10 @@ class LeadNurtureAgent:
     def _llm_reply(self, lead: LeadState, history: list[str], message: str, retrieved: list[SearchHit], next_action: str) -> str:
         context = "\n\n".join(f"Source: {hit.source}\n{hit.text}" for hit in retrieved) or "No retrieved context."
         system = (
-            "You are a lead nurturing chatbot prototype. Be helpful, concise, and value-led. "
-            "Use retrieved company knowledge only; do not invent features. "
-            "Goal: make the next conversation step slightly warmer by connecting a business pain "
+            "You are the chat completion model inside a lead nurturing chatbot prototype. "
+            "Respond directly to the potential lead's latest chat query as the agent would in production. "
+            "Be helpful, concise, and value-led. Use retrieved company knowledge only; do not invent features. "
+            "Goal: answer the question, make the next conversation step slightly warmer by connecting a business pain "
             "to a concrete value point, then ask one focused qualification question. "
             "If hot, ask for a concrete scheduling window for a contact appointment/demo. Never pretend to be human."
         )

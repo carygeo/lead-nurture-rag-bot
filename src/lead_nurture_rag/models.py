@@ -38,3 +38,5 @@ class AgentTurnResult(BaseModel):
     next_action: Literal["continue_nurture", "offer_case_study", "schedule_contact"]
     observation: ObservationAnalysis
     rationale: str
+    response_mode: Literal["llm", "fallback"] = "fallback"
+    response_model: str | None = None
