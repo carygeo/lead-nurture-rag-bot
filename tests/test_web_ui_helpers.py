@@ -18,6 +18,8 @@ def test_default_company_url_is_getsupernews_domain() -> None:
     assert DEFAULT_CAMPAIGN["root_url"] == "https://getsupernews.com"
     assert DEFAULT_CAMPAIGN["allowed_domains"] == ["getsupernews.com"]
     assert DEFAULT_CAMPAIGN["seed_pages"] == ["https://getsupernews.com/"]
+    assert DEFAULT_CAMPAIGN["target_persona"] == "mobile news readers, publishers, media teams, and news consumers"
+    assert "bite-sized news" in DEFAULT_CAMPAIGN["offer"]
 
 
 def test_default_campaign_json_is_pretty_printed_valid_json() -> None:

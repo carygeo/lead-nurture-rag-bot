@@ -11,9 +11,9 @@ DEFAULT_CAMPAIGN: dict[str, Any] = {
     "allowed_domains": ["getsupernews.com"],
     "seed_pages": ["https://getsupernews.com/"],
     "crawl_depth": 1,
-    "max_pages": 25,
-    "target_persona": "business owner or marketing lead",
-    "offer": "AI-powered customer newsletter and content workflow",
+    "max_pages": 10,
+    "target_persona": "mobile news readers, publishers, media teams, and news consumers",
+    "offer": "AI-powered visual, bite-sized news experience with summaries, key takeaways, weather, quizzes, and live reactions",
 }
 
 

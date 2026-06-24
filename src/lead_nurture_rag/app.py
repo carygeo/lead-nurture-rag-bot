@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from .agent import LeadNurtureAgent
 from .crawler import CampaignConfig, crawl_campaign
 from .observation import analyze_observation, build_observation
-from .retriever import KnowledgeBase
+from .retriever import KnowledgeBase, chunk_text
 from .store import ConversationStore
 
 load_dotenv()
@@ -57,12 +57,27 @@ def ingest_url(req: IngestUrlRequest):
 def ingest_campaign(req: CampaignConfig):
     documents = crawl_campaign(req)
     ids = kb.add_documents(documents)
+    unique_ids = list(dict.fromkeys(ids))
+    chunks = [kb.chunks[chunk_id].model_dump(mode="json") for chunk_id in unique_ids if chunk_id in kb.chunks]
     return {
         "company_name": req.company_name,
         "pages_crawled": len(documents),
         "chunk_ids": ids,
+        "chunks_added_or_seen": len(ids),
+        "chunks_returned": len(chunks),
         "chunks_total": len(kb.chunks),
-        "pages": [{"url": doc.url, "title": doc.title, "metadata": doc.metadata} for doc in documents],
+        "pages": [
+            {
+                "url": doc.url,
+                "title": doc.title,
+                "word_count": len(doc.text.split()),
+                "chunk_count": len(chunk_text(doc.text)),
+                "text_preview": doc.text[:500],
+                "metadata": doc.metadata,
+            }
+            for doc in documents
+        ],
+        "chunks": chunks,
     }
 
 
