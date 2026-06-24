@@ -1,0 +1,37 @@
+[project]
+name = "lead-nurture-rag-bot"
+version = "0.1.0"
+description = "Prototype RAG-backed lead nurturing chatbot for scoring cold/warm/hot lead conversations."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "fastapi>=0.115.0",
+    "httpx>=0.27.0",
+    "openai>=1.40.0",
+    "pydantic>=2.8.0",
+    "python-dotenv>=1.0.1",
+    "requests>=2.32.0",
+    "scikit-learn>=1.5.0",
+    "streamlit>=1.37.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
