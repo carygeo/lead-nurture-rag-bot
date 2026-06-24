@@ -83,10 +83,17 @@ class LeadNurtureAgent:
         retrieved = self.knowledge_base.search(retrieval_query, k=4)
         lead = score_lead(lead_id, history, message, analysis)
         next_action = self._next_action(lead)
+        llm_error: str | None = None
         if self._client:
-            reply = self._llm_reply(lead, history, message, retrieved, next_action)
-            response_mode = "llm"
-            response_model = self.model
+            try:
+                reply = self._llm_reply(lead, history, message, retrieved, next_action)
+                response_mode = "llm"
+                response_model = self.model
+            except Exception as exc:  # noqa: BLE001 - provider failures should not break demos
+                reply = self._fallback_reply(lead, message, retrieved, next_action)
+                response_mode = "fallback"
+                response_model = None
+                llm_error = type(exc).__name__
         else:
             reply = self._fallback_reply(lead, message, retrieved, next_action)
             response_mode = "fallback"
@@ -96,6 +103,8 @@ class LeadNurtureAgent:
             f"sentiment={analysis.sentiment.label}/{analysis.sentiment.score}; "
             f"signals={lead.signals}; objections={lead.objections}"
         )
+        if llm_error:
+            rationale = f"{rationale}; llm_error={llm_error}"
         return AgentTurnResult(
             lead=lead,
             reply=reply,

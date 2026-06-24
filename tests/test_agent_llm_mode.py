@@ -15,9 +15,19 @@ class FakeChatCompletions:
         )
 
 
+class FailingChatCompletions:
+    def create(self, **kwargs):
+        raise RuntimeError("provider rejected request")
+
+
 class FakeOpenAIClient:
     def __init__(self) -> None:
         self.chat = SimpleNamespace(completions=FakeChatCompletions())
+
+
+class FailingOpenAIClient:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(completions=FailingChatCompletions())
 
 
 def build_kb() -> KnowledgeBase:
@@ -54,3 +64,14 @@ def test_agent_reports_fallback_mode_when_no_chat_completion_client() -> None:
     assert result.response_mode == "fallback"
     assert result.response_model is None
     assert result.reply != "LLM-written nurture response"
+
+
+def test_agent_falls_back_when_chat_completion_client_errors() -> None:
+    agent = LeadNurtureAgent(build_kb(), client=FailingOpenAIClient(), model="blocked-model")
+
+    result = agent.respond("lead-error", [], "What is your company about?")
+
+    assert result.response_mode == "fallback"
+    assert result.response_model is None
+    assert "Supernews" in result.reply
+    assert "llm_error=RuntimeError" in result.rationale
