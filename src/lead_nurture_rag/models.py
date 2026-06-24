@@ -12,6 +12,7 @@ class KnowledgeChunk(BaseModel):
     id: str
     source: str
     text: str
+    metadata: dict = Field(default_factory=dict)
 
 
 class SearchHit(KnowledgeChunk):
@@ -31,5 +32,5 @@ class AgentTurnResult(BaseModel):
     lead: LeadState
     reply: str
     retrieved_context: list[SearchHit]
-    next_action: Literal["continue_nurture", "offer_case_study", "handoff_to_sales"]
+    next_action: Literal["continue_nurture", "offer_case_study", "schedule_contact"]
     rationale: str

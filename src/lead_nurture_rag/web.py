@@ -7,6 +7,25 @@ API_URL = st.sidebar.text_input("API URL", "http://localhost:8000")
 st.set_page_config(page_title="Lead nurture RAG bot", layout="wide")
 st.title("Lead nurture RAG bot prototype")
 
+st.sidebar.header("Campaign crawler")
+campaign_json = st.sidebar.text_area(
+    "Campaign JSON",
+    value='''{
+  "company_name": "Example Construction AI",
+  "root_url": "https://example.com",
+  "allowed_domains": ["example.com"],
+  "seed_pages": ["https://example.com/"],
+  "crawl_depth": 1,
+  "max_pages": 25,
+  "target_persona": "construction project executive",
+  "offer": "AI payment application validation workflow"
+}''',
+    height=220,
+)
+if st.sidebar.button("Crawl campaign website"):
+    res = requests.post(f"{API_URL}/ingest/campaign", json=__import__("json").loads(campaign_json), timeout=120)
+    st.sidebar.write(res.json())
+
 st.sidebar.header("Knowledge ingestion")
 url = st.sidebar.text_input("Company URL")
 if st.sidebar.button("Ingest URL") and url:

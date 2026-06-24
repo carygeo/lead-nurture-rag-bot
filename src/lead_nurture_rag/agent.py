@@ -26,7 +26,12 @@ def score_lead(lead_id: str, history: list[str], message: str) -> LeadState:
     score = 10
     score += min(25, 6 * len(_contains_any(corpus, POSITIVE)))
     score += min(30, 8 * len(_contains_any(corpus, PAIN)))
-    score += min(45, 12 * len(_contains_any(corpus, BUYING)))
+    buying_signals = _contains_any(corpus, BUYING)
+    score += min(45, 12 * len(buying_signals))
+    if len(buying_signals) >= 2:
+        score += 18
+    if len(buying_signals) >= 3:
+        score += 15
     if "?" in message:
         score += 10
     if len(message.split()) > 12:
@@ -53,7 +58,7 @@ class LeadNurtureAgent:
 
     def _next_action(self, lead: LeadState) -> str:
         if lead.temperature == "hot":
-            return "handoff_to_sales"
+            return "schedule_contact"
         if lead.temperature == "warm":
             return "offer_case_study"
         return "continue_nurture"
@@ -65,7 +70,7 @@ class LeadNurtureAgent:
             "Use retrieved company knowledge only; do not invent features. "
             "Goal: make the next conversation step slightly warmer by connecting a business pain "
             "to a concrete value point, then ask one focused qualification question. "
-            "If hot, suggest a sales handoff/demo. Never pretend to be human."
+            "If hot, ask for a concrete scheduling window for a contact appointment/demo. Never pretend to be human."
         )
         user = f"Lead state: {lead.model_dump()}\nNext action: {next_action}\nHistory: {history[-6:]}\nMessage: {message}\nRetrieved context:\n{context}"
         response = self._client.chat.completions.create(
@@ -78,10 +83,10 @@ class LeadNurtureAgent:
     def _fallback_reply(self, lead: LeadState, message: str, retrieved: list[SearchHit], next_action: str) -> str:
         evidence = retrieved[0].text if retrieved else "the company knowledge base you provided"
         sentence = re.split(r"(?<=[.!?])\s+", evidence.strip())[0][:240]
-        if next_action == "handoff_to_sales":
+        if next_action == "schedule_contact":
             return (
                 f"Based on what you shared, this sounds like an active fit. {sentence} "
-                "A practical next step would be a short workflow review with someone who can map it to your project. "
+                "A practical next step is to schedule a short contact appointment or workflow review with someone who can map it to your project. "
                 "What day this week would be easiest for a 20-minute demo?"
             )
         if next_action == "offer_case_study":

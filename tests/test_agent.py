@@ -41,4 +41,4 @@ def test_agent_marks_explicit_buying_signal_as_hot():
 
     assert result.lead.temperature == "hot"
     assert result.lead.score >= 75
-    assert result.next_action == "handoff_to_sales"
+    assert result.next_action == "schedule_contact"

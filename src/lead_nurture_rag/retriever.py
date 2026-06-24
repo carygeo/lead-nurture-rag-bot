@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from .categorizer import categorize_chunk, metadata_to_search_text
 from .models import KnowledgeChunk, SearchHit
 
 
@@ -52,15 +53,27 @@ class KnowledgeBase:
         if self.persist_path and self.persist_path.exists():
             self.load()
 
-    def add_text(self, source: str, text: str) -> list[str]:
+    def add_text(self, source: str, text: str, metadata: dict | None = None) -> list[str]:
         ids = []
         for chunk in chunk_text(text):
             chunk_id = stable_chunk_id(source, chunk)
             ids.append(chunk_id)
-            self.chunks.setdefault(chunk_id, KnowledgeChunk(id=chunk_id, source=source, text=chunk))
+            chunk_metadata = categorize_chunk(chunk, metadata or {})
+            self.chunks.setdefault(
+                chunk_id,
+                KnowledgeChunk(id=chunk_id, source=source, text=chunk, metadata=chunk_metadata),
+            )
         self._reindex()
         if self.persist_path:
             self.save()
+        return ids
+
+    def add_documents(self, documents) -> list[str]:
+        ids: list[str] = []
+        for document in documents:
+            metadata = dict(getattr(document, "metadata", {}) or {})
+            metadata.setdefault("page_title", getattr(document, "title", ""))
+            ids.extend(self.add_text(source=document.url, text=document.text, metadata=metadata))
         return ids
 
     def add_url(self, url: str, timeout: int = 20) -> list[str]:
@@ -93,7 +106,7 @@ class KnowledgeBase:
             self._vectorizer = None
             self._matrix = None
             return
-        texts = [chunk.text for chunk in self.chunks.values()]
+        texts = [f"{chunk.text} {metadata_to_search_text(chunk.metadata)}" for chunk in self.chunks.values()]
         self._vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
         self._matrix = self._vectorizer.fit_transform(texts)
 

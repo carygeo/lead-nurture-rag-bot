@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from .agent import LeadNurtureAgent
+from .crawler import CampaignConfig, crawl_campaign
 from .retriever import KnowledgeBase
 from .store import ConversationStore
 
@@ -49,6 +50,19 @@ def ingest_text(req: IngestTextRequest):
 def ingest_url(req: IngestUrlRequest):
     ids = kb.add_url(req.url)
     return {"chunk_ids": ids, "chunks_total": len(kb.chunks)}
+
+
+@app.post("/ingest/campaign")
+def ingest_campaign(req: CampaignConfig):
+    documents = crawl_campaign(req)
+    ids = kb.add_documents(documents)
+    return {
+        "company_name": req.company_name,
+        "pages_crawled": len(documents),
+        "chunk_ids": ids,
+        "chunks_total": len(kb.chunks),
+        "pages": [{"url": doc.url, "title": doc.title, "metadata": doc.metadata} for doc in documents],
+    }
 
 
 @app.post("/chat")

@@ -1,0 +1,14 @@
+{
+  "company_name": "Example Construction AI",
+  "root_url": "https://example.com",
+  "allowed_domains": ["example.com"],
+  "seed_pages": [
+    "https://example.com/",
+    "https://example.com/solutions",
+    "https://example.com/case-studies"
+  ],
+  "crawl_depth": 1,
+  "max_pages": 25,
+  "target_persona": "construction project executive",
+  "offer": "AI payment application validation workflow"
+}
