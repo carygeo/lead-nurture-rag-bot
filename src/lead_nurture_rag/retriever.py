@@ -86,15 +86,23 @@ class KnowledgeBase:
         text = f"{title}\n" + soup.get_text(" ")
         return self.add_text(source=url, text=text)
 
-    def search(self, query: str, k: int = 4) -> list[SearchHit]:
+    def search(self, query: str, k: int = 4, company_name: str | None = None) -> list[SearchHit]:
         if not self.chunks or not normalize_text(query):
             return []
         self._reindex()
         assert self._vectorizer is not None and self._matrix is not None
         query_vector = self._vectorizer.transform([query])
         scores = cosine_similarity(query_vector, self._matrix).ravel()
-        ordered = sorted(enumerate(scores), key=lambda item: item[1], reverse=True)[:k]
         chunks = list(self.chunks.values())
+        allowed_company = company_name.lower() if company_name else None
+        candidates = []
+        for index, score in enumerate(scores):
+            chunk = chunks[index]
+            chunk_company = str(chunk.metadata.get("company_name", "")).lower()
+            if allowed_company and chunk_company != allowed_company:
+                continue
+            candidates.append((index, score))
+        ordered = sorted(candidates, key=lambda item: item[1], reverse=True)[:k]
         return [
             SearchHit(**chunks[index].model_dump(), score=float(score))
             for index, score in ordered

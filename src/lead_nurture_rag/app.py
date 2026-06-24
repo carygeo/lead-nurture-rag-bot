@@ -18,6 +18,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 kb = KnowledgeBase(DATA_DIR / "knowledge.json")
 store = ConversationStore(DATA_DIR / "leads.sqlite")
 agent = LeadNurtureAgent(kb)
+active_company_name: str | None = None
 
 app = FastAPI(title="Lead Nurture RAG Bot", version="0.1.0")
 
@@ -34,11 +35,12 @@ class IngestUrlRequest(BaseModel):
 class ChatRequest(BaseModel):
     lead_id: str = "demo-lead"
     message: str
+    company_name: str | None = None
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "chunks": len(kb.chunks)}
+    return {"ok": True, "chunks": len(kb.chunks), "active_company_name": active_company_name}
 
 
 @app.post("/ingest/text")
@@ -55,8 +57,10 @@ def ingest_url(req: IngestUrlRequest):
 
 @app.post("/ingest/campaign")
 def ingest_campaign(req: CampaignConfig):
+    global active_company_name
     documents = crawl_campaign(req)
     ids = kb.add_documents(documents)
+    active_company_name = req.company_name
     unique_ids = list(dict.fromkeys(ids))
     chunks = [kb.chunks[chunk_id].model_dump(mode="json") for chunk_id in unique_ids if chunk_id in kb.chunks]
     return {
@@ -83,15 +87,20 @@ def ingest_campaign(req: CampaignConfig):
 
 @app.post("/chat")
 def chat(req: ChatRequest):
-    history = store.get_history(req.lead_id)
-    result = agent.respond(req.lead_id, history, req.message)
-    observation = build_observation(req.lead_id, "chat", req.message, history)
+    company_name = req.company_name or active_company_name
+    scoped_lead_id = f"{company_name}:{req.lead_id}" if company_name else req.lead_id
+    history = store.get_history(scoped_lead_id)
+    result = agent.respond(scoped_lead_id, history, req.message, company_name=company_name)
+    observation = build_observation(scoped_lead_id, "chat", req.message, history)
     analysis = analyze_observation(observation)
     store.append_observation(observation, analysis)
-    store.append_turn(req.lead_id, "user", req.message)
-    store.append_turn(req.lead_id, "assistant", result.reply)
-    store.upsert_lead(req.lead_id, result.lead.temperature, result.lead.score, result.rationale)
-    return result.model_dump(mode="json")
+    store.append_turn(scoped_lead_id, "user", req.message)
+    store.append_turn(scoped_lead_id, "assistant", result.reply)
+    store.upsert_lead(scoped_lead_id, result.lead.temperature, result.lead.score, result.rationale)
+    payload = result.model_dump(mode="json")
+    payload["company_name"] = company_name
+    payload["lead_id"] = scoped_lead_id
+    return payload
 
 
 @app.get("/leads")

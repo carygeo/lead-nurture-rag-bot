@@ -76,11 +76,11 @@ class LeadNurtureAgent:
         else:
             self._client = None
 
-    def respond(self, lead_id: str, history: list[str], message: str) -> AgentTurnResult:
+    def respond(self, lead_id: str, history: list[str], message: str, company_name: str | None = None) -> AgentTurnResult:
         observation = build_observation(lead_id=lead_id, channel="chat", message=message, history=history)
         analysis = analyze_observation(observation)
-        retrieval_query = f"{message} {' '.join(analysis.recommended_rag_topics)}"
-        retrieved = self.knowledge_base.search(retrieval_query, k=4)
+        retrieval_query = f"{company_name or ''} {message} {' '.join(analysis.recommended_rag_topics)}"
+        retrieved = self.knowledge_base.search(retrieval_query, k=4, company_name=company_name)
         lead = score_lead(lead_id, history, message, analysis)
         next_action = self._next_action(lead)
         llm_error: str | None = None

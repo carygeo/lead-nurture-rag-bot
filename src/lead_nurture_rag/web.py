@@ -16,14 +16,20 @@ API_URL = st.sidebar.text_input("API URL", "http://localhost:8000")
 st.title("Lead nurture RAG bot prototype")
 
 st.sidebar.header("Campaign crawler")
+if "active_company_name" not in st.session_state:
+    st.session_state.active_company_name = "Supernews"
 campaign_json = st.sidebar.text_area(
     "Campaign JSON",
     value=default_campaign_json(),
     height=220,
 )
 if st.sidebar.button("Crawl campaign website"):
-    res = requests.post(f"{API_URL}/ingest/campaign", json=json.loads(campaign_json), timeout=120)
+    payload = json.loads(campaign_json)
+    res = requests.post(f"{API_URL}/ingest/campaign", json=payload, timeout=120)
+    st.session_state.active_company_name = payload.get("company_name") or st.session_state.active_company_name
+    st.session_state.messages = []
     st.sidebar.write(format_response_payload(res))
+st.sidebar.caption(f"Active knowledge scope: {st.session_state.active_company_name}")
 
 st.sidebar.header("Knowledge ingestion")
 url = st.sidebar.text_input("Company URL", DEFAULT_COMPANY_URL)
@@ -49,7 +55,11 @@ if prompt := st.chat_input("Write as the potential lead..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-    res = requests.post(f"{API_URL}/chat", json={"lead_id": lead_id, "message": prompt}, timeout=60)
+    res = requests.post(
+        f"{API_URL}/chat",
+        json={"lead_id": lead_id, "message": prompt, "company_name": st.session_state.active_company_name},
+        timeout=60,
+    )
     data = res.json()
     reply = data["reply"]
     st.session_state.messages.append({"role": "assistant", "content": reply})
