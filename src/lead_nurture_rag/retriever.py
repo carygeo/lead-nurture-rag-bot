@@ -18,7 +18,7 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def chunk_text(text: str, chunk_words: int = 120, overlap_words: int = 24) -> list[str]:
+def chunk_text(text: str, chunk_words: int = 60, overlap_words: int = 12) -> list[str]:
     words = normalize_text(text).split()
     if not words:
         return []

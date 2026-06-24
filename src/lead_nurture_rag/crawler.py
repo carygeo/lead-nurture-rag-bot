@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import deque
 from dataclasses import dataclass, field
 from urllib.parse import urldefrag, urljoin, urlparse
@@ -101,10 +102,112 @@ def _metadata_text(soup: BeautifulSoup) -> str:
     return normalize_text(" ".join(dict.fromkeys(values)))
 
 
-def extract_document(url: str, html: str, company_name: str, target_persona: str | None = None, offer: str | None = None) -> CrawledDocument:
+TEXT_BUNDLE_KEYS = (
+    "children",
+    "label",
+    "title",
+    "description",
+    "subtitle",
+    "heading",
+    "subheading",
+    "text",
+    "alt",
+)
+
+
+def _decode_js_string(value: str) -> str:
+    try:
+        return json.loads(f'"{value}"')
+    except json.JSONDecodeError:
+        return value.replace(r"\n", " ").replace(r"\"", '"')
+
+
+def _looks_like_copy(value: str) -> bool:
+    value = normalize_text(value)
+    if len(value) < 4 or len(value) > 320:
+        return False
+    if not re.search(r"[A-Za-z]{3}", value):
+        return False
+    if re.fullmatch(r"[a-z0-9_./:-]+", value, flags=re.IGNORECASE):
+        return False
+    if any(token in value for token in ("className", "function", "@license", "http://www.w3.org")):
+        return False
+    if any(token in value for token in ("[", "]", "--", "var(", "hsl(", "px-", "text-", "bg-")):
+        return False
+    low = value.lower()
+    if any(
+        phrase in low
+        for phrase in (
+            "article not found",
+            "page not found",
+            "return to home",
+            "analysis isn't available",
+            "fort myers",
+            "mostly clear",
+            "hot, humid",
+        )
+    ):
+        return False
+    return True
+
+
+def extract_bundle_copy(js_text: str) -> str:
+    """Extract user-visible marketing copy from a minified SPA bundle.
+
+    Many customer/prototype sites are client-rendered and the first HTML
+    response contains only metadata plus an app shell. Their useful page copy
+    often appears in minified JavaScript as object properties like
+    `children:"..."` or `label:"..."`. Keep extraction conservative so the RAG
+    store gets visible copy rather than arbitrary implementation code.
+    """
+    values: list[str] = []
+    key_pattern = "|".join(re.escape(key) for key in TEXT_BUNDLE_KEYS)
+    for match in re.finditer(rf"(?:{key_pattern}):\"((?:[^\"\\]|\\.){{2,320}})\"", js_text):
+        value = _decode_js_string(match.group(1))
+        if _looks_like_copy(value):
+            values.append(normalize_text(value))
+    return normalize_text(" ".join(dict.fromkeys(values)))
+
+
+def _same_origin_asset_url(page_url: str, asset_src: str) -> str | None:
+    asset_url = canonicalize_url(urljoin(page_url, asset_src))
+    page_domain = urlparse(page_url).netloc.lower().removeprefix("www.")
+    asset_domain = urlparse(asset_url).netloc.lower().removeprefix("www.")
+    if page_domain != asset_domain:
+        return None
+    return asset_url
+
+
+def _spa_bundle_text(url: str, soup: BeautifulSoup, timeout: int = 20) -> str:
+    values: list[str] = []
+    headers = {"User-Agent": "lead-nurture-rag-bot/0.1"}
+    for script in soup.find_all("script", src=True):
+        asset_url = _same_origin_asset_url(url, script["src"])
+        if not asset_url or not asset_url.endswith(".js"):
+            continue
+        try:
+            response = requests.get(asset_url, timeout=timeout, headers=headers)
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        bundle_copy = extract_bundle_copy(response.text)
+        if bundle_copy:
+            values.append(bundle_copy)
+    return normalize_text(" ".join(dict.fromkeys(values)))
+
+
+def extract_document(
+    url: str,
+    html: str,
+    company_name: str,
+    target_persona: str | None = None,
+    offer: str | None = None,
+    include_spa_bundle: bool = False,
+) -> CrawledDocument:
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.string.strip() if soup.title and soup.title.string else url
     metadata_text = _metadata_text(soup)
+    bundle_text = _spa_bundle_text(url, soup) if include_spa_bundle else ""
     for tag in soup(["script", "style", "nav", "footer", "noscript", "svg"]):
         tag.decompose()
     main = soup.find("main") or soup.find("article") or soup.body or soup
@@ -112,6 +215,8 @@ def extract_document(url: str, html: str, company_name: str, target_persona: str
     text_parts = [metadata_text]
     if len(body_text.split()) >= 5 and body_text.lower() not in {"edit with"}:
         text_parts.append(body_text)
+    if bundle_text:
+        text_parts.append(bundle_text)
     text = normalize_text(" ".join(part for part in text_parts if part))
     metadata = categorize_page(url=url, title=title, text=text)
     metadata.update({"company_name": company_name})
@@ -149,7 +254,14 @@ def crawl_campaign(config: CampaignConfig, timeout: int = 20) -> list[CrawledDoc
         if "html" not in response.headers.get("content-type", "text/html"):
             continue
         html = response.text
-        doc = extract_document(url, html, config.company_name, config.target_persona, config.offer)
+        doc = extract_document(
+            url,
+            html,
+            config.company_name,
+            config.target_persona,
+            config.offer,
+            include_spa_bundle=True,
+        )
         if doc.text:
             docs.append(doc)
         if depth < config.crawl_depth:
