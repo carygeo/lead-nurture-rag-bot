@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -33,6 +34,16 @@ class ConversationStore:
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )"""
             )
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS observations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                message TEXT NOT NULL,
+                analysis_json TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )"""
+            )
 
     def append_turn(self, lead_id: str, role: str, content: str) -> None:
         with self._connect() as db:
@@ -61,6 +72,35 @@ class ConversationStore:
                 """,
                 (lead_id, temperature, score, rationale),
             )
+
+    def append_observation(self, observation, analysis) -> None:
+        with self._connect() as db:
+            db.execute(
+                "INSERT INTO observations (lead_id, channel, message, analysis_json) VALUES (?, ?, ?, ?)",
+                (
+                    observation.lead_id,
+                    observation.channel,
+                    observation.message,
+                    json.dumps(analysis.model_dump(), default=str),
+                ),
+            )
+
+    def get_observations(self, lead_id: str) -> list[dict]:
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT channel, message, analysis_json, created_at
+                FROM observations WHERE lead_id = ? ORDER BY id ASC""",
+                (lead_id,),
+            ).fetchall()
+        return [
+            {
+                "channel": row[0],
+                "message": row[1],
+                "analysis": json.loads(row[2]),
+                "created_at": row[3],
+            }
+            for row in rows
+        ]
 
     def list_leads(self) -> list[dict]:
         with self._connect() as db:

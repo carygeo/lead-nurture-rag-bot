@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .observation import Demographics, ObservationAnalysis
+
 LeadTemperature = Literal["cold", "warm", "hot"]
 
 
@@ -25,6 +27,7 @@ class LeadState(BaseModel):
     score: int = Field(default=0, ge=0, le=100)
     signals: list[str] = Field(default_factory=list)
     objections: list[str] = Field(default_factory=list)
+    demographics: Demographics = Field(default_factory=Demographics)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -33,4 +36,5 @@ class AgentTurnResult(BaseModel):
     reply: str
     retrieved_context: list[SearchHit]
     next_action: Literal["continue_nurture", "offer_case_study", "schedule_contact"]
+    observation: ObservationAnalysis
     rationale: str

@@ -6,6 +6,7 @@ import re
 from openai import OpenAI
 
 from .models import AgentTurnResult, LeadState, SearchHit
+from .observation import ObservationAnalysis, analyze_observation, build_observation
 from .retriever import KnowledgeBase
 
 POSITIVE = {"interested", "help", "reduce", "improve", "pain", "problem", "issue", "need", "useful"}
@@ -19,7 +20,9 @@ def _contains_any(text: str, terms: set[str]) -> list[str]:
     return [term for term in sorted(terms) if term in low]
 
 
-def score_lead(lead_id: str, history: list[str], message: str) -> LeadState:
+def score_lead(
+    lead_id: str, history: list[str], message: str, analysis: ObservationAnalysis | None = None
+) -> LeadState:
     corpus = " ".join(history + [message]).lower()
     signals = _contains_any(corpus, POSITIVE | BUYING | PAIN)
     objections = _contains_any(corpus, OBJECTIONS)
@@ -36,10 +39,24 @@ def score_lead(lead_id: str, history: list[str], message: str) -> LeadState:
         score += 10
     if len(message.split()) > 12:
         score += 8
+    if analysis and analysis.sentiment.label == "positive":
+        score += 8
+    if analysis and analysis.intent == "schedule_demo":
+        score += 20
+    if analysis and analysis.sentiment.label == "negative":
+        score -= 15
     score -= min(30, 10 * len(objections))
     score = max(0, min(100, score))
     temperature = "cold" if score < 40 else "warm" if score < 75 else "hot"
-    return LeadState(lead_id=lead_id, temperature=temperature, score=score, signals=signals, objections=objections)
+    demographics = analysis.demographics if analysis else None
+    return LeadState(
+        lead_id=lead_id,
+        temperature=temperature,
+        score=score,
+        signals=signals,
+        objections=objections,
+        demographics=demographics or {},
+    )
 
 
 class LeadNurtureAgent:
@@ -49,12 +66,26 @@ class LeadNurtureAgent:
         self._client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
 
     def respond(self, lead_id: str, history: list[str], message: str) -> AgentTurnResult:
-        retrieved = self.knowledge_base.search(message, k=4)
-        lead = score_lead(lead_id, history, message)
+        observation = build_observation(lead_id=lead_id, channel="chat", message=message, history=history)
+        analysis = analyze_observation(observation)
+        retrieval_query = f"{message} {' '.join(analysis.recommended_rag_topics)}"
+        retrieved = self.knowledge_base.search(retrieval_query, k=4)
+        lead = score_lead(lead_id, history, message, analysis)
         next_action = self._next_action(lead)
         reply = self._llm_reply(lead, history, message, retrieved, next_action) if self._client else self._fallback_reply(lead, message, retrieved, next_action)
-        rationale = f"{lead.temperature} lead scored {lead.score}; signals={lead.signals}; objections={lead.objections}"
-        return AgentTurnResult(lead=lead, reply=reply, retrieved_context=retrieved, next_action=next_action, rationale=rationale)
+        rationale = (
+            f"{lead.temperature} lead scored {lead.score}; intent={analysis.intent}; "
+            f"sentiment={analysis.sentiment.label}/{analysis.sentiment.score}; "
+            f"signals={lead.signals}; objections={lead.objections}"
+        )
+        return AgentTurnResult(
+            lead=lead,
+            reply=reply,
+            retrieved_context=retrieved,
+            next_action=next_action,
+            observation=analysis,
+            rationale=rationale,
+        )
 
     def _next_action(self, lead: LeadState) -> str:
         if lead.temperature == "hot":

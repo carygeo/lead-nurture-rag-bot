@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .agent import LeadNurtureAgent
 from .crawler import CampaignConfig, crawl_campaign
+from .observation import analyze_observation, build_observation
 from .retriever import KnowledgeBase
 from .store import ConversationStore
 
@@ -69,6 +70,9 @@ def ingest_campaign(req: CampaignConfig):
 def chat(req: ChatRequest):
     history = store.get_history(req.lead_id)
     result = agent.respond(req.lead_id, history, req.message)
+    observation = build_observation(req.lead_id, "chat", req.message, history)
+    analysis = analyze_observation(observation)
+    store.append_observation(observation, analysis)
     store.append_turn(req.lead_id, "user", req.message)
     store.append_turn(req.lead_id, "assistant", result.reply)
     store.upsert_lead(req.lead_id, result.lead.temperature, result.lead.score, result.rationale)
@@ -78,3 +82,8 @@ def chat(req: ChatRequest):
 @app.get("/leads")
 def leads():
     return store.list_leads()
+
+
+@app.get("/leads/{lead_id}/observations")
+def lead_observations(lead_id: str):
+    return store.get_observations(lead_id)

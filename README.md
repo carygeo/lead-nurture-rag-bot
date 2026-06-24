@@ -8,7 +8,7 @@ The prototype lets you:
 - Crawl a campaign website from seed URLs with domain limits, page filtering, and per-chunk categorization.
 - Chat as a potential lead.
 - Retrieve relevant company context on each turn.
-- Score the lead as `cold`, `warm`, or `hot` based on interest, pain, objections, and buying signals.
+- Score the lead as `cold`, `warm`, or `hot` based on interest, sentiment, pain, objections, demographics explicitly disclosed by the lead, and buying signals.
 - Generate a value-led nurturing reply with a next-best action.
 - Persist conversation turns and lead state locally in SQLite.
 
@@ -16,7 +16,8 @@ The prototype lets you:
 
 - `KnowledgeBase`: local TF-IDF retrieval over stable chunks. It enriches each chunk with categorization metadata and indexes both text and metadata. It is intentionally simple and rebuildable; swap this layer later for Chroma/Qdrant/OpenAI embeddings.
 - `Campaign crawler`: domain-limited crawler that starts from campaign seed URLs, skips noisy pages, extracts main content, and tags page/chunk metadata.
-- `LeadNurtureAgent`: agent loop that retrieves context, scores the lead, chooses a next action, and drafts a response.
+- `LeadNurtureAgent`: agent loop that retrieves context, analyzes each observation, scores the lead, chooses a next action, and drafts a response.
+- `Observation analyzer`: extracts sentiment, intent, pain points, objections, buying signals, questions, recommended RAG topics, and explicitly self-disclosed demographics.
 - `ConversationStore`: SQLite persistence for turns and lead scores.
 - `FastAPI`: API for ingesting knowledge, chatting, and listing leads.
 - `Streamlit`: quick test UI.
@@ -120,11 +121,21 @@ Conversation pipeline:
 
 ```text
 initial educational/value communication
-→ retrieve company knowledge relevant to the lead's question
+→ treat each user reply as an observation
+→ analyze sentiment, intent, pain, objections, buying signals, questions, and self-disclosed demographics
+→ retrieve company knowledge relevant to the lead's question and observation topics
 → test comfort/interest with one focused question
-→ detect pain, objections, and buying signals
+→ update lead score and durable state
 → if warm, offer proof/workflow example
 → if hot, route to schedule_contact and ask for appointment timing
+```
+
+Demographic handling is intentionally conservative: the prototype records age range and gender only when the lead explicitly self-discloses them in the message. It does not guess protected traits from writing style, name, or role. It can infer business-relevant role/occupation and industry from explicit statements such as “I am the CFO” or “I manage pay apps for our construction team.”
+
+Observation records are persisted and can be inspected with:
+
+```bash
+curl http://localhost:8000/leads/demo-lead/observations
 ```
 
 ## Development
