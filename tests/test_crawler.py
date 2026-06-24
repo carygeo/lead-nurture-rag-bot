@@ -52,6 +52,94 @@ def test_campaign_crawler_discovers_allowed_links_and_skips_noise(monkeypatch):
     assert "payment_application_validation" in docs[1].metadata["topics"]
 
 
+def test_campaign_crawler_skips_customer_account_redirects(monkeypatch):
+    pages = {
+        "https://shop.test/": """
+        <html><head><title>Shop</title></head><body>
+          <main>Premium seafood delivered to your home or business.</main>
+          <a href="/account">Account</a>
+          <a href="/collections/bundles">Seafood bundles</a>
+        </body></html>
+        """,
+        "https://shop.test/collections/bundles": """
+        <html><head><title>Bundles</title></head><body>
+          <main>Curated seafood bundles with scallops, lobster, haddock, and shrimp.</main>
+        </body></html>
+        """,
+    }
+
+    class Response:
+        def __init__(self, url):
+            self.text = pages[url]
+            self.status_code = 200
+            self.headers = {"content-type": "text/html"}
+            self.url = url
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout, headers):
+        assert url in pages
+        return Response(url)
+
+    monkeypatch.setattr("lead_nurture_rag.crawler.requests.get", fake_get)
+    config = CampaignConfig(
+        company_name="Shop",
+        root_url="https://shop.test",
+        allowed_domains=["shop.test"],
+        seed_pages=["https://shop.test/"],
+        crawl_depth=1,
+        max_pages=5,
+    )
+
+    docs = crawl_campaign(config)
+
+    assert [doc.url for doc in docs] == ["https://shop.test/", "https://shop.test/collections/bundles"]
+    assert all("account" not in doc.url for doc in docs)
+
+
+def test_campaign_crawler_ignores_allowed_url_that_redirects_off_domain(monkeypatch):
+    pages = {
+        "https://shop.test/": """
+        <html><head><title>Shop</title></head><body>
+          <main>Premium seafood delivered to your home or business.</main>
+          <a href="/customer-auth">Customer auth</a>
+        </body></html>
+        """,
+        "https://shop.test/customer-auth": """
+        <html><head><title>Redirected auth</title></head><body>External login shell</body></html>
+        """,
+    }
+
+    class Response:
+        def __init__(self, url):
+            self.text = pages[url]
+            self.status_code = 200
+            self.headers = {"content-type": "text/html"}
+            self.url = "https://shopify.com/account" if url.endswith("customer-auth") else url
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout, headers):
+        assert url in pages
+        return Response(url)
+
+    monkeypatch.setattr("lead_nurture_rag.crawler.requests.get", fake_get)
+    config = CampaignConfig(
+        company_name="Shop",
+        root_url="https://shop.test",
+        allowed_domains=["shop.test"],
+        seed_pages=["https://shop.test/"],
+        crawl_depth=1,
+        max_pages=5,
+    )
+
+    docs = crawl_campaign(config)
+
+    assert [doc.url for doc in docs] == ["https://shop.test/"]
+
+
 def test_extract_document_uses_metadata_when_rendered_body_is_sparse():
     html = """
     <html>

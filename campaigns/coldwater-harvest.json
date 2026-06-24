@@ -1,0 +1,17 @@
+{
+  "company_name": "Coldwater Harvest",
+  "root_url": "https://coldwaterharvest.com/",
+  "allowed_domains": ["coldwaterharvest.com"],
+  "seed_pages": [
+    "https://coldwaterharvest.com/",
+    "https://coldwaterharvest.com/collections/seafood-bundles",
+    "https://coldwaterharvest.com/collections/smaller-items",
+    "https://coldwaterharvest.com/collections/bulk-items",
+    "https://coldwaterharvest.com/pages/about-us",
+    "https://coldwaterharvest.com/pages/contact"
+  ],
+  "crawl_depth": 1,
+  "max_pages": 20,
+  "target_persona": "seafood buyers, restaurant operators, grocers, and Canadian home customers who want premium frozen seafood delivered",
+  "offer": "responsibly sourced Canadian Atlantic seafood delivered frozen to homes and businesses, including seafood bundles, scallops, lobster, cod, haddock, shrimp, mussels, and smoked salmon"
+}

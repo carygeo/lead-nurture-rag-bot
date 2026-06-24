@@ -14,8 +14,8 @@ from .categorizer import categorize_page
 from .retriever import normalize_text
 
 NOISE_PATH_PARTS = (
-    "privacy", "terms", "cookie", "login", "signin", "signup", "careers", "jobs",
-    "wp-json", "tag/", "category/", "author/", "cart", "checkout",
+    "privacy", "terms", "cookie", "login", "signin", "signup", "account", "search",
+    "careers", "jobs", "wp-json", "tag/", "category/", "author/", "cart", "checkout",
 )
 
 
@@ -55,12 +55,16 @@ def canonicalize_url(url: str) -> str:
     return parsed._replace(scheme=scheme, netloc=netloc, path=path, query="").geturl()
 
 
+def _domain_allowed(url: str, allowed_domains: set[str]) -> bool:
+    domain = urlparse(url).netloc.lower().removeprefix("www.")
+    return domain in allowed_domains
+
+
 def should_skip_url(url: str, allowed_domains: set[str]) -> bool:
     parsed = urlparse(url)
-    domain = parsed.netloc.lower().removeprefix("www.")
     if parsed.scheme not in {"http", "https"}:
         return True
-    if domain not in allowed_domains:
+    if not _domain_allowed(url, allowed_domains):
         return True
     path = parsed.path.lower()
     if any(part in path for part in NOISE_PATH_PARTS):
@@ -249,8 +253,13 @@ def crawl_campaign(config: CampaignConfig, timeout: int = 20) -> list[CrawledDoc
         if url in seen or should_skip_url(url, allowed_domains):
             continue
         seen.add(url)
-        response = requests.get(url, timeout=timeout, headers=headers)
-        response.raise_for_status()
+        try:
+            response = requests.get(url, timeout=timeout, headers=headers)
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        if not _domain_allowed(response.url, allowed_domains):
+            continue
         if "html" not in response.headers.get("content-type", "text/html"):
             continue
         html = response.text
