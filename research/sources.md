@@ -88,6 +88,14 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - Apollo broken AI-sales-agent URL — https://www.apollo.io/product/ai-sales-agent — returned HTTP 404 on 2026-06-24; logged as a blocked/broken source and not used for product-specific claims.
 - AnythingLLM product and GitHub — https://anythingllm.com/ ; https://github.com/Mintplex-Labs/anything-llm — primary sources for local/offline document chat, AI agents, private operation, and source-citation capability.
 
+## Competitive matrix: AI SDR / conversational lead engagement
+
+- 11x home page — https://www.11x.ai/ — primary source for digital-AI-worker positioning, outbound/inbound qualification, lead nurture/reactivation, website visitors, meeting scheduling, CRM/Slack/G2 integrations, and API references. The attempted pricing URL https://www.11x.ai/pricing returned 404 on 2026-06-24.
+- Artisan home page and pricing page — https://www.artisan.co/ ; https://www.artisan.co/pricing — primary sources for AI BDR / AI employee positioning, Ava outbound automation, lead finding/prioritization, campaign execution, reply/objection handling, meeting booking, human-escalation rules, and trial-credit language. Exact paid tier pricing was not extracted from static text.
+- Salesloft Drift platform and Drift redirect — https://www.drift.com/products/drift-engage/ ; https://www.salesloft.com/platform/drift — primary sources for Drift redirect behavior, AI chat agents, website visitors to pipeline, and revenue-orchestration positioning. Salesloft pricing page https://www.salesloft.com/pricing was reachable but exact public prices were not extracted from static text.
+- Pipedrive AI Sales Assistant — https://www.pipedrive.com/en/features/ai-sales-assistant — primary source for CRM-native AI sales assistant positioning around analyzing actions/past performance, suggesting actions, notifications, and progress updates. Pipedrive pricing URL https://www.pipedrive.com/en/pricing returned an “Attention Required”/403-style page on 2026-06-24.
+- Blocked/broken AI-SDR adjacent sources — https://www.6sense.com/platform/revenue-ai/ returned Cloudflare/403; https://www.lusha.com/pricing/ returned browser-check/403; https://reply.io/ returned Cloudflare/403 and https://reply.io/ai-sales-agents/ returned 404/static fallback; https://www.qualified.com/products/piper returned 404/Page Not Found. These are logged as blocked/dynamic findings, not product-evidence sources.
+
 ## UX / rubric inspiration
 
 - Nielsen Norman Group usability heuristics — https://www.nngroup.com/articles/ten-usability-heuristics/ — useful for human-review queue and response review UX rubric.

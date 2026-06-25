@@ -300,3 +300,39 @@ Actionable insights / open questions:
 Confidence: High that the JSONL fixture matches current repo model fields and gives 12/12 retrieval hit@3 on existing cases; medium that this remains stable after future chunking/retriever changes because the smoke test loads pre-chunked documents directly.
 
 Next run recommendation: Continue the evaluation-harness slice by committing a tiny executable evaluation script that validates JSONL, checks expected retrieval hit@k, and optionally verifies forbidden/required facts against generated responses.
+
+## 2026-06-24 23:53 EDT — Competitive matrix: AI SDR and conversational engagement
+
+Focus question: How do newer AI-SDR and conversational lead-engagement products position themselves relative to a local-first, source-grounded lead-nurture RAG intelligence layer?
+
+New findings:
+
+- 11x's public home page verifies digital-AI-worker positioning for Sales/RevOps/GTM leaders and exposes outbound/inbound qualification, lead nurture/reactivation, website visitor retargeting, automated meeting scheduling, CRM/Slack/G2 integrations, and API language. Its guessed pricing URL returned 404 in this environment.
+- Artisan's public pages verify AI BDR / AI employee positioning: Ava finds and prioritizes high-intent leads, runs campaigns, handles replies/objections, books meetings, and uses human escalation rules. Its pricing page exposed a free-trial/10,000-credit/$300-credit offer, but exact paid plans were not extracted from static text.
+- Drift now redirects to Salesloft's Drift platform page; Salesloft public text verifies AI chat agents, “turn website visitors into pipeline,” and revenue-orchestration positioning across sales engagement and revenue intelligence. Exact Salesloft pricing was not extracted.
+- Pipedrive's AI Sales Assistant page verifies CRM-native assistant positioning around analyzing actions/past performance, suggesting actions, personalized notifications, and progress updates. Pipedrive pricing was blocked by an “Attention Required”/403-style page.
+- 6sense, Lusha, Reply.io, and a guessed Qualified/Piper URL were blocked, Cloudflare-protected, or 404 from this environment; these are logged as blocked-source findings and not used for substantive product claims.
+
+Key sources:
+
+- https://www.11x.ai/
+- https://www.artisan.co/ ; https://www.artisan.co/pricing
+- https://www.drift.com/products/drift-engage/ ; https://www.salesloft.com/platform/drift ; https://www.salesloft.com/pricing
+- https://www.pipedrive.com/en/features/ai-sales-assistant
+- Blocked/broken attempts: https://www.11x.ai/pricing ; https://www.6sense.com/platform/revenue-ai/ ; https://www.lusha.com/pricing/ ; https://reply.io/ ; https://reply.io/ai-sales-agents/ ; https://www.qualified.com/products/piper ; https://www.pipedrive.com/en/pricing
+
+Measurable output produced:
+
+- Added a dated AI-SDR/conversational-engagement matrix section to `research/competitive-landscape.md` with category, positioning, pricing/access, AI claims, CRM/email/lead-engagement surfaces, and gap-vs-prototype fields.
+- Added corresponding source-index entries and blocked-source notes to `research/sources.md`.
+- Revalidated `research/fixtures/lead_nurture_eval_cases.jsonl`: 12 valid JSONL cases.
+
+Actionable insights / open questions:
+
+- Do not position the repo as another autonomous sender or meeting-booker; crowded AI-SDR products already lead with execution automation.
+- The clearer differentiator remains an intelligence/review layer: private campaign knowledge ingestion, source citations, observed-signal extraction, explainable temperature scoring, and compliance-gated drafts that can later export to AI-SDR/CRM tools.
+- Follow-up should manually validate blocked/dynamic AI-SDR pricing and stable product URLs, especially 6sense, Lusha, Reply.io, and Qualified/Piper, before expanding matrix rows.
+
+Confidence: Medium-high for fetched 11x, Artisan, Salesloft/Drift, and Pipedrive page claims; low for exact pricing and blocked products because several URLs were 403, Cloudflare-protected, dynamic, or 404.
+
+Next run recommendation: Rotate to evaluation harness by adding a tiny executable research smoke-eval script for JSONL validation and retrieval hit@k, using the existing canned KB fixture.
