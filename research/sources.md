@@ -66,6 +66,16 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - HubSpot CRM contacts/objects/webhooks docs — https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide ; https://developers.hubspot.com/docs/api-reference/crm-objects-v3/guide ; https://developers.hubspot.com/docs/api/webhooks — reachable but JavaScript-heavy/static extraction was insufficient in the 2026-06-24 integration-architecture run.
 - Salesforce REST API intro — https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm — attempted in the 2026-06-24 integration-architecture run; blocked by HTTP 403 from this environment.
 
+## Product wedge and customer discovery
+
+- Apollo pricing/product page — https://www.apollo.io/pricing — primary source for Apollo positioning around sales intelligence, prospecting, inbound lead qualification, enrichment, AI assistant, CRM/export workflows, and free sign-up path.
+- Close pricing/product page — https://close.com/pricing — primary source for Close positioning around CRM, email/calling/SMS, workflows, lead pipeline management, Chloe AI sales agent, business-count claim, imports, API access, and event log.
+- HubSpot state-of-sales attempted URL — https://www.hubspot.com/state-of-sales — attempted in the 2026-06-24 product-wedge run; returned HTTP 404/static fallback from this environment, so no report-specific claims were used.
+- HubSpot public site fallback from attempted page — https://www.hubspot.com/state-of-sales — same attempted URL surfaced general HubSpot product navigation text for Smart CRM, small-business/startup packaging, Breeze AI agents, and AI prospecting agent, but treat as dynamic/fallback context rather than a stable report citation.
+- AnythingLLM product page — https://anythingllm.com/ — primary source for packaging local/offline/private document chat and local defaults for LLM/embedder/vector DB/storage/agents.
+- Y Combinator Startup Library — https://www.ycombinator.com/library — reachable methodology background for startup/customer-discovery material; the previously known direct “talk to users” slug returned 404 in this environment.
+- Y Combinator broken slug — https://www.ycombinator.com/library/6g-how-to-talk-to-users — returned HTTP 404 on 2026-06-24; logged as a blocked/broken source, not used for substantive claims.
+
 ## UX / rubric inspiration
 
 - Nielsen Norman Group usability heuristics — https://www.nngroup.com/articles/ten-usability-heuristics/ — useful for human-review queue and response review UX rubric.

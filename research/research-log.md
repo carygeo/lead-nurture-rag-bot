@@ -188,3 +188,41 @@ Actionable insights / open questions:
 Confidence: Medium-high for inbound email provider webhook pattern and Close API use-case fit from primary docs; low for HubSpot/Salesforce mappings because current access was dynamic/blocked.
 
 Next run recommendation: Rotate to product wedge/customer discovery and turn the integration finding into 5-7 interview questions about whether founders want a draft queue, CRM export, or send-capable automation first.
+
+## 2026-06-24 22:09 EDT — Product wedge and customer discovery interview plan
+
+Focus question: Which early wedge should this local-first lead-nurture RAG bot test first, and what customer-discovery questions can falsify it?
+
+New findings:
+
+- Apollo's current pricing/product page continues to support the “data-first GTM platform” contrast: public text emphasizes sales intelligence, prospecting, inbound qualification, enrichment, deal execution, AI assistant, CRM/export workflows, and free sign-up.
+- Close's current pricing/product page supports the “CRM/action workspace” contrast: public text emphasizes CRM, calling/email/SMS, workflows, lead pipeline management, Chloe AI sales agent, imports, API/event-log access, and a claim of 11,500+ businesses.
+- AnythingLLM's current product page supports the existence of a local/offline/private knowledge-AI packaging pattern for non-developers, including local/offline document chat and locally running defaults where nothing is shared unless allowed.
+- HubSpot's attempted `state-of-sales` URL returned HTTP 404/static fallback from this environment; static fallback text exposed general HubSpot product navigation for Smart CRM, Breeze AI agents, small-business/startup packaging, and AI prospecting, but no report-specific claim should be made from this run.
+- YC's startup library index was reachable and contains “talk to users” material, but a previously known direct “how to talk to users” slug returned 404; logged as a broken-source finding.
+
+Key sources:
+
+- https://www.apollo.io/pricing
+- https://close.com/pricing
+- https://anythingllm.com/
+- https://www.hubspot.com/state-of-sales
+- https://www.ycombinator.com/library
+- https://www.ycombinator.com/library/6g-how-to-talk-to-users
+
+Measurable output produced:
+
+- Added a dated product-wedge/customer-discovery slice to `research/open-questions.md`.
+- Added source-index entries and blocked-source notes to `research/sources.md`.
+- Produced 4 falsifiable wedge hypotheses and 8 interview questions focused on draft-review intelligence, privacy-sensitive enablement, vertical demos, and CRM-light outputs.
+- Revalidated `research/fixtures/lead_nurture_eval_cases.jsonl`: 9 valid JSONL cases.
+
+Actionable insights / open questions:
+
+- Test the first wedge as “cited draft + score rationale + human review,” not automatic sending; this aligns with the repo's current local chat/scoring loop and compliance research.
+- Ask users to rank costly failure modes before implementing more integrations; false-hot handoff, missed hot lead, hallucinated claims, ignored opt-outs, and sensitive-data leakage imply different eval priorities.
+- Demand remains unverified until at least 5 interviews document current workflows, sensitive-knowledge constraints, and willingness-to-pay/time-saved signals.
+
+Confidence: Medium for competitive/context facts from current primary pages; low-to-medium for wedge hypotheses because they are product-discovery assumptions pending interviews. HubSpot report-specific and YC direct-article claims are blocked/broken.
+
+Next run recommendation: Rotate to differentiation/demo strategy by turning the product-wedge hypotheses into one concrete demo script and fixture additions for a cited, draft-before-send review queue.
