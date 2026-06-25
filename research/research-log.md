@@ -448,3 +448,42 @@ Actionable insights / open questions:
 Confidence: High for cited opt-out, footer, spam-rate, and provider-event source availability; medium for the proposed schema and fixture policy thresholds because they are local design hypotheses pending implementation and review.
 
 Next run recommendation: Continue compliance/integration architecture by adding a tiny `ComplianceGate` interface or pseudocode spec that maps the 14 fixtures' `compliance` fields into typed blocker decisions, then extend `scripts/research_smoke_eval.py` with non-failing compliance-gate baseline metrics.
+
+## 2026-06-25 02:19 EDT — ComplianceGate executable invariant baseline
+
+Focus question: Can the research harness turn the proposed `ComplianceGate` schema into deterministic fixture invariants before a real email adapter is implemented?
+
+New findings:
+
+- The current primary source set for opt-out/footer and provider-event guardrails remains reachable from this environment: FTC CAN-SPAM, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs all returned HTTP 200 in this run.
+- A fixture-level invariant check exposed one schema gap in the original `unsubscribe_001` case: it had `must_stop_contact=true` but no explicit `send_allowed=false`. That gap is now fixed with `send_allowed=false` and `suppression_reason="explicit_unsubscribe"`.
+- The harness now reports a non-LLM compliance inventory: 14 cases with tracked compliance fields, 8 explicit send-block cases, 5 stop-contact cases, 5 human-review cases, 2 provider-event cases, 3 missing-required-field cases, 2 internal-draft-allowed cases, and 0 invariant violations.
+- This is a fixture-consistency baseline, not an application behavior result: no actual `ComplianceGate` implementation exists yet, and no legal compliance or deliverability performance is claimed.
+
+Key sources:
+
+- https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- https://support.google.com/a/answer/81126
+- https://senders.yahooinc.com/best-practices/
+- https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event
+- https://postmarkapp.com/developer/webhooks/webhooks-overview
+- https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html
+- https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+Measurable output produced:
+
+- Extended `scripts/research_smoke_eval.py` with `evaluate_compliance_fixture_invariants` and fail-fast behavior for contradictory compliance fixture labels.
+- Updated `research/fixtures/lead_nurture_eval_cases.jsonl` so `unsubscribe_001` has explicit `send_allowed=false` and `suppression_reason="explicit_unsubscribe"`.
+- Added the executable-invariant slice to `research/benchmark-fixtures.md` and `research/email-outreach-compliance-human-review.md`.
+- Added the rechecked source set to `research/sources.md`.
+- Validation result from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json`: `valid_kb_documents=17`, `valid_jsonl_cases=14`, `scored_retrieval_cases=14`, `hit_count_at_3=14`, `hit_rate_at_3=1.0`, `recall_at_5=0.9166666666666666`, `mrr_at_5=0.9642857142857143`, `p95_retrieval_ms=2.144978750948212`, `observation_scored_cases=14`, `intent_accuracy=0.35714285714285715`, `sentiment_label_accuracy=0.5`, `temperature_accuracy=0.7857142857142857`, `next_action_accuracy=0.7142857142857143`, `false_sensitive_demographic_inference_count=0`, `compliance_fixture_cases=14`, `compliance_send_block_cases=8`, `compliance_fixture_invariant_violations=[]`, `no_hit_cases=[]`.
+
+Actionable insights / open questions:
+
+- Implement a real `ComplianceGate.evaluate_pre_draft` / `evaluate_pre_send` function next and compare returned fields against the now-consistent JSONL labels.
+- Keep compliance actions separate from the chat-only `next_action` enum; the harness confirms typed blocker fields are easier to validate than overloading `continue_nurture`.
+- Decide whether compliance invariant failures should always fail CI or be reported separately while the adapter is still unimplemented.
+
+Confidence: High for fixture validity and source reachability because the validation command and HTTP checks completed in this run; medium for the proposed invariant thresholds because they are product/engineering guardrails pending legal/product review.
+
+Next run recommendation: Implement a minimal pure-Python `ComplianceGate` module or spec that maps fixture `compliance` inputs into typed gate outputs, then extend the smoke eval to compare actual gate decisions against expected labels.

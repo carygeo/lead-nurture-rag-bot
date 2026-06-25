@@ -241,6 +241,96 @@ def evaluate_observation_and_scoring(cases: list[dict[str, Any]]) -> dict[str, A
     }
 
 
+def evaluate_compliance_fixture_invariants(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate source-backed compliance fixture labels before a real gate exists.
+
+    This is intentionally a fixture-consistency baseline, not a claim that the
+    application enforces these rules yet. It checks whether labeled compliance
+    cases encode the proposed ComplianceGate result contract in a way future
+    implementation tests can consume deterministically.
+    """
+    compliance_cases = 0
+    send_block_cases = 0
+    stop_contact_cases = 0
+    human_review_cases = 0
+    provider_event_cases = 0
+    missing_required_field_cases = 0
+    draft_allowed_cases = 0
+    violations: list[dict[str, Any]] = []
+
+    blocking_provider_events = {"spam_report", "complaint", "bounce", "dropped", "unsubscribe"}
+    blocking_missing_fields = {"unsubscribe_url", "postal_address", "reviewer_approval", "fresh_thread_review"}
+
+    for case in cases:
+        case_id = str(case.get("id", "<missing-id>"))
+        compliance = case.get("compliance") or {}
+        if not compliance:
+            continue
+
+        tracked_keys = {
+            "must_stop_contact",
+            "send_allowed",
+            "draft_allowed",
+            "requires_human_review",
+            "suppression_reason",
+            "provider_event_types",
+            "missing_required_fields",
+            "compliance_action",
+            "review_requirements",
+        }
+        if not tracked_keys.intersection(compliance):
+            continue
+
+        compliance_cases += 1
+        send_allowed = compliance.get("send_allowed")
+        must_stop = bool(compliance.get("must_stop_contact", False))
+        requires_review = bool(compliance.get("requires_human_review", False))
+        provider_events = set(str(event) for event in compliance.get("provider_event_types", []))
+        missing_fields = set(str(field) for field in compliance.get("missing_required_fields", []))
+        compliance_action = compliance.get("compliance_action")
+
+        if send_allowed is False:
+            send_block_cases += 1
+        if must_stop:
+            stop_contact_cases += 1
+        if requires_review:
+            human_review_cases += 1
+        if provider_events:
+            provider_event_cases += 1
+        if missing_fields:
+            missing_required_field_cases += 1
+        if compliance.get("draft_allowed") is True:
+            draft_allowed_cases += 1
+
+        case_violations: list[str] = []
+        if must_stop and send_allowed is not False:
+            case_violations.append("must_stop_contact requires send_allowed=false")
+        if provider_events.intersection(blocking_provider_events) and send_allowed is not False:
+            case_violations.append("blocking provider event requires send_allowed=false")
+        if missing_fields.intersection(blocking_missing_fields) and send_allowed is not False:
+            case_violations.append("blocking missing field requires send_allowed=false")
+        if send_allowed is False and (must_stop or provider_events or missing_fields) and not (
+            compliance.get("suppression_reason") or compliance_action or missing_fields
+        ):
+            case_violations.append("blocked case should expose suppression_reason, compliance_action, or missing_required_fields")
+        if requires_review and send_allowed is True:
+            case_violations.append("requires_human_review should not be sendable before review")
+
+        if case_violations:
+            violations.append({"id": case_id, "violations": case_violations})
+
+    return {
+        "compliance_fixture_cases": compliance_cases,
+        "compliance_send_block_cases": send_block_cases,
+        "compliance_must_stop_contact_cases": stop_contact_cases,
+        "compliance_requires_human_review_cases": human_review_cases,
+        "compliance_provider_event_cases": provider_event_cases,
+        "compliance_missing_required_field_cases": missing_required_field_cases,
+        "compliance_draft_allowed_internal_cases": draft_allowed_cases,
+        "compliance_fixture_invariant_violations": violations,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate research JSONL fixtures and run TF-IDF retrieval smoke metrics.")
     parser.add_argument("--kb-fixture", type=Path, default=Path("research/fixtures/kb_documents.jsonl"))
@@ -254,6 +344,7 @@ def main() -> int:
     cases = iter_jsonl(args.cases)
     result = evaluate(kb, cases, k_hit=args.k_hit, k_recall=args.k_recall)
     result.update(evaluate_observation_and_scoring(cases))
+    result.update(evaluate_compliance_fixture_invariants(cases))
 
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.out:
@@ -261,7 +352,7 @@ def main() -> int:
         args.out.write_text(payload + "\n", encoding="utf-8")
     print(payload)
 
-    if result["no_hit_cases"] or result["cases_missing_expected_retrieval"]:
+    if result["no_hit_cases"] or result["cases_missing_expected_retrieval"] or result["compliance_fixture_invariant_violations"]:
         return 1
     return 0
 

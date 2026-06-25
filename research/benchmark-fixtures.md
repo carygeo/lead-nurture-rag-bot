@@ -128,6 +128,36 @@ Verified source basis:
 
 Unverified/hypothesis: exact field names such as `suppression_reason`, `send_allowed`, and `requires_human_review` are proposed local harness fields, not vendor-standard fields.
 
+### ComplianceGate invariant baseline — 2026-06-25
+
+Focused slice: add a non-LLM, source-backed fixture consistency check for the proposed `ComplianceGate` fields before implementing the actual email adapter.
+
+What changed:
+
+- `scripts/research_smoke_eval.py` now reports compliance fixture inventory and invariant checks in addition to retrieval and observation/scoring metrics.
+- The original `unsubscribe_001` fixture now explicitly includes `send_allowed=false` and `suppression_reason="explicit_unsubscribe"` so the oldest opt-out case conforms to the same typed gate contract as newer compliance cases.
+
+Current compliance invariant output from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json` on 2026-06-25:
+
+- `compliance_fixture_cases=14`
+- `compliance_send_block_cases=8`
+- `compliance_must_stop_contact_cases=5`
+- `compliance_requires_human_review_cases=5`
+- `compliance_provider_event_cases=2`
+- `compliance_missing_required_field_cases=3`
+- `compliance_draft_allowed_internal_cases=2`
+- `compliance_fixture_invariant_violations=[]`
+
+Invariant rules currently encoded:
+
+1. Any case labeled `must_stop_contact=true` must also set `send_allowed=false`.
+2. Blocking provider events (`spam_report`, `complaint`, `bounce`, `dropped`, `unsubscribe`) must set `send_allowed=false`.
+3. Blocking pre-send missing fields (`unsubscribe_url`, `postal_address`, `reviewer_approval`, `fresh_thread_review`) must set `send_allowed=false`.
+4. Blocked cases should expose at least one machine-readable reason through `suppression_reason`, `compliance_action`, or `missing_required_fields`.
+5. Cases still requiring human review should not be marked sendable before review.
+
+Verified source basis rechecked from this environment on 2026-06-25: FTC CAN-SPAM, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs all returned HTTP 200. The sources support opt-out/footer requirements and provider bounce/complaint/unsubscribe event handling; the local invariant names are fixture design hypotheses, not legal-compliance claims.
+
 ## Benchmark set F: Business outcome proxies
 
 Use 10-20 multi-turn scenarios with labels:

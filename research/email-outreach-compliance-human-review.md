@@ -130,6 +130,30 @@ Design rationale:
 
 Unverified/hypothesis: exact enum names (`draft_review_block`, `allow_draft`, `fresh_thread_check`) are local design proposals. The verified source-backed requirement is narrower: opt-outs, physical address/unsubscribe, provider complaint/bounce handling, and human review/auditability must be represented before send-capable automation.
 
+## ComplianceGate executable-invariant slice — 2026-06-25
+
+Focus: make the proposed schema measurable before implementation by checking fixture labels for source-backed blocker semantics.
+
+### Verified source availability in this run
+
+The current environment fetched these primary sources with HTTP 200: FTC CAN-SPAM guidance, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs. This confirms the source set remains reachable for the compliance-gate assumptions used by the fixture harness. It does **not** certify the product as legally compliant.
+
+### Executable fixture invariants now encoded
+
+`./scripts/research_smoke_eval.py` now includes `evaluate_compliance_fixture_invariants`, a fixture-level baseline that fails only when fixture labels contradict the proposed gate contract. It does not yet evaluate real application behavior because no `ComplianceGate` implementation exists.
+
+Current rules:
+
+- `must_stop_contact=true` requires `send_allowed=false`.
+- Spam complaint, bounce/dropped, unsubscribe-like provider events require `send_allowed=false`.
+- Missing commercial-email blockers such as `unsubscribe_url`, `postal_address`, `reviewer_approval`, or `fresh_thread_review` require `send_allowed=false`.
+- Blocked cases should carry a typed reason via `suppression_reason`, `compliance_action`, or `missing_required_fields`.
+- A case marked `requires_human_review=true` should not be marked sendable before review.
+
+Observed result on 2026-06-25: all 14 current eval cases with tracked compliance fields pass the invariant check (`compliance_fixture_invariant_violations=[]`); 8 are explicit send-block cases, 5 require stop-contact handling, 5 require human review, 2 encode provider events, and 3 encode missing required fields.
+
+Implementation implication: the next code slice can replace this fixture-label consistency check with a real `ComplianceGate.evaluate_pre_draft` / `evaluate_pre_send` function and compare returned fields to these labels without changing the JSONL schema.
+
 ## Methodology backlog items
 
 1. Build a jurisdiction matrix for US CAN-SPAM, Canada CASL, UK PECR/UK GDPR, EU ePrivacy/GDPR, and Australia Spam Act: consent basis, B2B exceptions, opt-out timing, sender identity, address/footer, penalties.
