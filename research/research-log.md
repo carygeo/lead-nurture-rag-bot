@@ -487,3 +487,42 @@ Actionable insights / open questions:
 Confidence: High for fixture validity and source reachability because the validation command and HTTP checks completed in this run; medium for the proposed invariant thresholds because they are product/engineering guardrails pending legal/product review.
 
 Next run recommendation: Implement a minimal pure-Python `ComplianceGate` module or spec that maps fixture `compliance` inputs into typed gate outputs, then extend the smoke eval to compare actual gate decisions against expected labels.
+
+## 2026-06-25 02:56 EDT — Integration architecture: minimal ComplianceGate implementation
+
+Focus question: Can the proposed compliance-gate fixture schema become a small deterministic `ComplianceGate` implementation that blocks unsafe email sends before a real provider adapter exists?
+
+New findings:
+
+- The current primary source set for opt-out/footer and provider-event guardrails remains reachable from this environment: FTC CAN-SPAM, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs all returned HTTP 200 at 2026-06-25 02:56 EDT.
+- A minimal gate can remain separate from the chat-only `next_action` enum and still cover the current source-backed blocker classes: explicit/ambiguous stop-contact labels, provider spam/bounce/unsubscribe events, missing commercial-email footer/reviewer/fresh-thread fields, and unresolved human review.
+- The gate comparison now checks 8 fixtures with explicit `send_allowed` labels: current result is `compliance_gate_send_allowed_accuracy=1.0` and `compliance_gate_mismatches=[]`.
+- The implementation is deliberately conservative: ambiguous opt-out plus review maps to `draft_review_block`; provider complaints and hard bounces suppress provider sends and recipient-facing sales drafts; missing footer/reviewer fields can still allow internal remediation drafts while blocking sends.
+
+Key sources:
+
+- https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- https://support.google.com/a/answer/81126
+- https://senders.yahooinc.com/best-practices/
+- https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event
+- https://postmarkapp.com/developer/webhooks/webhooks-overview
+- https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html
+- https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+Measurable output produced:
+
+- Added `src/lead_nurture_rag/compliance_gate.py` with `ComplianceGateResult`, `ComplianceGate.evaluate_pre_send`, and `ComplianceGate.evaluate_pre_draft`.
+- Extended `scripts/research_smoke_eval.py` to compare actual gate decisions to fixture labels via `evaluate_compliance_gate_against_fixtures`.
+- Added `tests/test_compliance_gate.py` with four focused unit tests.
+- Updated `research/email-outreach-compliance-human-review.md`, `research/benchmark-fixtures.md`, and `research/sources.md` with the implementation slice and source basis.
+- Validation result from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json && uv run pytest tests/test_compliance_gate.py`: `valid_kb_documents=17`, `valid_jsonl_cases=14`, `hit_rate_at_3=1.0`, `recall_at_5=0.9166666666666666`, `mrr_at_5=0.9642857142857143`, `compliance_fixture_invariant_violations=[]`, `compliance_gate_checked_cases=8`, `compliance_gate_send_allowed_accuracy=1.0`, `compliance_gate_mismatches=[]`, and 4 compliance-gate unit tests passed.
+
+Actionable insights / open questions:
+
+- Wire `ComplianceGate` into a future email normalizer/draft endpoint before adding any provider send API; do not let lead temperature or LLM output override `send_allowed=false`.
+- Add raw provider webhook fixtures next so SendGrid/Postmark/Mailgun/SES event payloads normalize into the current `compliance` dictionary before gate evaluation.
+- Decide whether ambiguous opt-out should always suppress immediately or permit an internal reviewer-only clarification path; current behavior is conservative but still a product/legal policy hypothesis.
+
+Confidence: High for fixture validity and deterministic gate metrics because the smoke eval and unit tests passed; high for cited source reachability; medium for exact gate thresholds and enum names because they are implementation hypotheses pending product/legal review. No legal compliance or deliverability performance is claimed.
+
+Next run recommendation: Rotate to integration architecture by adding raw provider-event JSONL fixtures plus a normalizer spec/table that maps SendGrid/Postmark/Mailgun/SES bounce, complaint, and unsubscribe events into `ComplianceGate` inputs.

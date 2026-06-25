@@ -154,6 +154,36 @@ Observed result on 2026-06-25: all 14 current eval cases with tracked compliance
 
 Implementation implication: the next code slice can replace this fixture-label consistency check with a real `ComplianceGate.evaluate_pre_draft` / `evaluate_pre_send` function and compare returned fields to these labels without changing the JSONL schema.
 
+## ComplianceGate minimal implementation slice — 2026-06-25
+
+Focus: implement the smallest deterministic pre-draft/pre-send gate that maps the existing fixture `compliance` labels into typed decisions before any sender API integration exists.
+
+### Verified source availability in this run
+
+The same primary source set returned HTTP 200 from this environment at 2026-06-25 02:56 EDT: FTC CAN-SPAM guidance, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs. These sources support opt-out, physical-address/unsubscribe, complaint/bounce/unsubscribe provider-event, and human-review guardrail design. They do **not** prove legal compliance or deliverability performance for this repo.
+
+### Implemented local gate behavior
+
+`src/lead_nurture_rag/compliance_gate.py` now defines:
+
+- `ComplianceGateResult`: `send_allowed`, `draft_allowed`, `requires_human_review`, `compliance_action`, `blocked_reasons`, `suppression_reason`, `missing_required_fields`, `provider_event_types`, and `review_requirements`.
+- `ComplianceGate.evaluate_pre_send(compliance)` for conservative sendability decisions.
+- `ComplianceGate.evaluate_pre_draft(compliance)` for draft-stage handling, with stop-contact/provider-suppression events preventing recipient-facing sales drafts.
+
+Current deterministic blockers:
+
+1. `must_stop_contact=true` blocks provider send.
+2. Provider events in `spam_report`, `complaint`, `bounce`, `dropped`, or `unsubscribe` block provider send.
+3. Missing fields in `unsubscribe_url`, `postal_address`, `reviewer_approval`, or `fresh_thread_review` block provider send.
+4. `requires_human_review=true` blocks provider send until review is resolved.
+5. Ambiguous opt-out plus human review maps to `draft_review_block` so an internal remediation/review draft can exist while commercial send remains blocked.
+
+### Harness result
+
+`scripts/research_smoke_eval.py` now compares gate output against the 8 fixtures with explicit `send_allowed` labels. Latest run: `compliance_gate_checked_cases=8`, `compliance_gate_send_allowed_accuracy=1.0`, `compliance_gate_mismatches=[]`, with all 14 JSONL cases and 17 KB documents valid.
+
+Unverified/hypothesis: this is a product/engineering guardrail and fixture baseline, not a legal opinion. Exact enum names and policy thresholds need review before production email sending.
+
 ## Methodology backlog items
 
 1. Build a jurisdiction matrix for US CAN-SPAM, Canada CASL, UK PECR/UK GDPR, EU ePrivacy/GDPR, and Australia Spam Act: consent basis, B2B exceptions, opt-out timing, sender identity, address/footer, penalties.

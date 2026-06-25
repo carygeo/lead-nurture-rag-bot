@@ -158,6 +158,31 @@ Invariant rules currently encoded:
 
 Verified source basis rechecked from this environment on 2026-06-25: FTC CAN-SPAM, Gmail sender guidelines, Yahoo sender best practices, SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking docs all returned HTTP 200. The sources support opt-out/footer requirements and provider bounce/complaint/unsubscribe event handling; the local invariant names are fixture design hypotheses, not legal-compliance claims.
 
+### ComplianceGate implementation baseline — 2026-06-25
+
+Focused slice: move from fixture-label invariants to a minimal deterministic `ComplianceGate` implementation and make the smoke evaluator compare actual gate decisions with JSONL labels.
+
+What changed:
+
+- Added `src/lead_nurture_rag/compliance_gate.py` with `ComplianceGateResult`, `evaluate_pre_send`, and `evaluate_pre_draft`.
+- Extended `scripts/research_smoke_eval.py` with `evaluate_compliance_gate_against_fixtures`.
+- Added focused unit tests in `tests/test_compliance_gate.py` for explicit unsubscribe, provider spam complaint, missing footer/human review, and allow-send baseline.
+
+Current output from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json` on 2026-06-25:
+
+- `valid_jsonl_cases=14`
+- `valid_kb_documents=17`
+- `compliance_gate_checked_cases=8`
+- `compliance_gate_send_allowed_accuracy=1.0`
+- `compliance_gate_mismatches=[]`
+- Retrieval remains stable: `hit_rate_at_3=1.0`, `recall_at_5=0.9166666666666666`, `mrr_at_5=0.9642857142857143`
+
+Limitations:
+
+- The gate evaluates only normalized fixture dictionaries; it does not yet parse raw provider webhooks, campaign records, or lead state from SQLite.
+- The gate is conservative and product-defined. It is not a legal-compliance guarantee and does not measure inbox placement/deliverability.
+- Observation/scoring metrics remain intentionally exposed as weak baselines; the compliance gate fixes sendability decisions, not intent/topic extraction.
+
 ## Benchmark set F: Business outcome proxies
 
 Use 10-20 multi-turn scenarios with labels:

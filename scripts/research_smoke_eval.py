@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from lead_nurture_rag.agent import score_lead
+from lead_nurture_rag.compliance_gate import ComplianceGate
 from lead_nurture_rag.models import KnowledgeChunk
 from lead_nurture_rag.observation import analyze_observation, build_observation
 from lead_nurture_rag.retriever import KnowledgeBase
@@ -331,6 +332,99 @@ def evaluate_compliance_fixture_invariants(cases: list[dict[str, Any]]) -> dict[
     }
 
 
+def evaluate_compliance_gate_against_fixtures(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare the minimal ComplianceGate implementation with fixture labels."""
+    checked_cases = 0
+    send_allowed_matches = 0
+    draft_allowed_matches = 0
+    human_review_matches = 0
+    suppression_reason_matches = 0
+    action_matches = 0
+    mismatches: list[dict[str, Any]] = []
+
+    for case in cases:
+        case_id = str(case.get("id", "<missing-id>"))
+        compliance = case.get("compliance") or {}
+        if "send_allowed" not in compliance:
+            continue
+
+        checked_cases += 1
+        result = ComplianceGate.evaluate_pre_send(compliance)
+        expected_action = compliance.get("compliance_action")
+        case_mismatches: dict[str, Any] = {"id": case_id}
+
+        if result.send_allowed == compliance.get("send_allowed"):
+            send_allowed_matches += 1
+        else:
+            case_mismatches["send_allowed"] = {
+                "expected": compliance.get("send_allowed"),
+                "actual": result.send_allowed,
+            }
+
+        if "draft_allowed" in compliance:
+            if result.draft_allowed == compliance.get("draft_allowed"):
+                draft_allowed_matches += 1
+            else:
+                case_mismatches["draft_allowed"] = {
+                    "expected": compliance.get("draft_allowed"),
+                    "actual": result.draft_allowed,
+                }
+
+        if "requires_human_review" in compliance:
+            if result.requires_human_review == compliance.get("requires_human_review"):
+                human_review_matches += 1
+            else:
+                case_mismatches["requires_human_review"] = {
+                    "expected": compliance.get("requires_human_review"),
+                    "actual": result.requires_human_review,
+                }
+
+        if "suppression_reason" in compliance:
+            if result.suppression_reason == compliance.get("suppression_reason"):
+                suppression_reason_matches += 1
+            else:
+                case_mismatches["suppression_reason"] = {
+                    "expected": compliance.get("suppression_reason"),
+                    "actual": result.suppression_reason,
+                }
+
+        if expected_action:
+            if result.compliance_action == expected_action:
+                action_matches += 1
+            else:
+                case_mismatches["compliance_action"] = {
+                    "expected": expected_action,
+                    "actual": result.compliance_action,
+                }
+
+        expected_missing = set(str(field) for field in compliance.get("missing_required_fields", []))
+        if expected_missing and not expected_missing.issubset(set(result.missing_required_fields)):
+            case_mismatches["missing_required_fields"] = {
+                "expected_subset": sorted(expected_missing),
+                "actual": result.missing_required_fields,
+            }
+
+        expected_events = set(str(event) for event in compliance.get("provider_event_types", []))
+        if expected_events and not expected_events.issubset(set(result.provider_event_types)):
+            case_mismatches["provider_event_types"] = {
+                "expected_subset": sorted(expected_events),
+                "actual": result.provider_event_types,
+            }
+
+        if len(case_mismatches) > 1:
+            mismatches.append(case_mismatches)
+
+    return {
+        "compliance_gate_checked_cases": checked_cases,
+        "compliance_gate_send_allowed_accuracy": send_allowed_matches / checked_cases if checked_cases else None,
+        "compliance_gate_draft_allowed_matches": draft_allowed_matches,
+        "compliance_gate_requires_human_review_matches": human_review_matches,
+        "compliance_gate_suppression_reason_matches": suppression_reason_matches,
+        "compliance_gate_action_matches": action_matches,
+        "compliance_gate_mismatches": mismatches,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate research JSONL fixtures and run TF-IDF retrieval smoke metrics.")
     parser.add_argument("--kb-fixture", type=Path, default=Path("research/fixtures/kb_documents.jsonl"))
@@ -345,6 +439,7 @@ def main() -> int:
     result = evaluate(kb, cases, k_hit=args.k_hit, k_recall=args.k_recall)
     result.update(evaluate_observation_and_scoring(cases))
     result.update(evaluate_compliance_fixture_invariants(cases))
+    result.update(evaluate_compliance_gate_against_fixtures(cases))
 
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.out:
@@ -352,7 +447,12 @@ def main() -> int:
         args.out.write_text(payload + "\n", encoding="utf-8")
     print(payload)
 
-    if result["no_hit_cases"] or result["cases_missing_expected_retrieval"] or result["compliance_fixture_invariant_violations"]:
+    if (
+        result["no_hit_cases"]
+        or result["cases_missing_expected_retrieval"]
+        or result["compliance_fixture_invariant_violations"]
+        or result["compliance_gate_mismatches"]
+    ):
         return 1
     return 0
 
