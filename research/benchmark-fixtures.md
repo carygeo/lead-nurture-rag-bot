@@ -263,3 +263,56 @@ Design notes grounded in repo implementation:
 - The script exits non-zero if any case lacks expected retrieval IDs or has no top-3 hit, making it a minimal regression gate rather than only a reporting utility.
 
 Unverified/hypothesis: this script does not yet test observation extraction, lead scoring, response groundedness, or compliance-gate behavior. It is an executable retrieval/fixture integrity baseline that future slices should extend.
+
+### Observation/scoring smoke-eval extension — 2026-06-25
+
+Focused slice: extend the executable research smoke test from retrieval-only fixture validation to also run the repo's deterministic observation analyzer and lead-scoring rules against the same 12 labeled cases.
+
+Updated script behavior:
+
+- `scripts/research_smoke_eval.py` now imports the current repo implementation for `analyze_observation`, `build_observation`, and `score_lead`.
+- The script still validates both JSONL fixture files and retrieval hit/recall/MRR metrics.
+- It additionally reports deterministic observation/scoring metrics: intent accuracy, sentiment-label accuracy, approximate multi-label recall for pain points/objections/buying signals/recommended topics, temperature accuracy, next-action accuracy, false sensitive-demographic inference count, and per-case mismatch details.
+- The script remains a hard regression gate only for invalid JSONL/missing retrieval IDs/no top-3 retrieval hits; observation/scoring mismatches are reported as baseline data rather than failing the command because current labels intentionally cover future email-adapter and compliance behaviors that the simple chat rules do not yet implement.
+
+Command:
+
+```bash
+uv run python scripts/research_smoke_eval.py --out .eval/latest.json
+```
+
+Observed output on 2026-06-25:
+
+- `valid_kb_documents=17`
+- `valid_jsonl_cases=12`
+- `scored_retrieval_cases=12`
+- `hit_count_at_3=12`
+- `hit_rate_at_3=1.0`
+- `recall_at_5=0.9583333333333334`
+- `mrr_at_5=0.9583333333333334`
+- `p95_retrieval_ms=2.865456250765419`
+- `observation_scored_cases=12`
+- `intent_accuracy=0.4166666666666667`
+- `sentiment_label_accuracy=0.5`
+- `pain_point_recall_approx=0.1111111111111111`
+- `objection_recall_approx=0.5`
+- `buying_signal_recall_approx=0.5833333333333334`
+- `recommended_topic_recall_approx=0.09722222222222221`
+- `temperature_accuracy=0.75`
+- `next_action_accuracy=0.6666666666666666`
+- `false_sensitive_demographic_inference_count=0`
+- `no_hit_cases=[]`
+
+Verified implementation basis:
+
+- Observation analysis uses `src/lead_nurture_rag/observation.py` directly, including the current rule lists for positive/negative/buying/pain/objection terms and the explicit-self-disclosure demographic policy.
+- Scoring uses `src/lead_nurture_rag/agent.py::score_lead`, then maps the resulting temperature to the current app action enum: `cold -> continue_nurture`, `warm -> offer_case_study`, `hot -> schedule_contact`.
+- The low observation/topic recall is therefore a source-backed baseline of the current deterministic rules, not a model-quality claim about future LLM mode.
+
+Actionable fixture findings:
+
+- Current retrieval is stable on the canned corpus, but observation extraction is the next bottleneck: the analyzer misses natural-language opt-outs such as “remove me” / “never contact,” provider-event language such as hard bounces, and compliance pre-send states such as missing postal address or reviewer approval.
+- The current app action enum cannot express non-send compliance actions (`honor_unsubscribe`, `internal_suppression`, `block_send`, `draft_review_block`), so fixtures are forced to label expected app actions as one of the three chat actions while response constraints carry the compliance-specific CTA type.
+- The false sensitive-demographic inference count is currently `0` on these fixtures for age/gender, which supports the existing explicit-self-disclosure policy for sensitive fields; this does not prove broader privacy compliance.
+
+Unverified/hypothesis: approximate multi-label recall uses token-overlap matching for labels such as “budget approved” vs actual term “budget.” It is a pragmatic smoke metric, not a replacement for a full extraction scorer with normalized ontology labels.

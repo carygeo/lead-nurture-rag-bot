@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import time
 from pathlib import Path
 from typing import Any
 
+from lead_nurture_rag.agent import score_lead
 from lead_nurture_rag.models import KnowledgeChunk
+from lead_nurture_rag.observation import analyze_observation, build_observation
 from lead_nurture_rag.retriever import KnowledgeBase
 
 
@@ -44,6 +47,54 @@ def query_for_case(case: dict[str, Any]) -> str:
     history = case.get("history") or []
     parts = [" ".join(str(item) for item in history), str(case.get("message", "")), " ".join(topics)]
     return " ".join(part for part in parts if part).strip()
+
+
+def next_action_for_temperature(temperature: str) -> str:
+    if temperature == "hot":
+        return "schedule_contact"
+    if temperature == "warm":
+        return "offer_case_study"
+    return "continue_nurture"
+
+
+def normalize_tokens(value: str) -> set[str]:
+    stopwords = {
+        "a",
+        "an",
+        "and",
+        "as",
+        "for",
+        "have",
+        "is",
+        "me",
+        "not",
+        "of",
+        "or",
+        "our",
+        "the",
+        "this",
+        "to",
+        "with",
+    }
+    return {token for token in re.findall(r"[a-z0-9]+", value.lower()) if token not in stopwords}
+
+
+def label_matches(expected: str, actual_values: list[str]) -> bool:
+    expected_low = expected.lower()
+    expected_tokens = normalize_tokens(expected)
+    for actual in actual_values:
+        actual_low = actual.lower()
+        if expected_low in actual_low or actual_low in expected_low:
+            return True
+        if expected_tokens and expected_tokens.intersection(normalize_tokens(actual)):
+            return True
+    return False
+
+
+def list_recall(expected_values: list[str], actual_values: list[str]) -> float | None:
+    if not expected_values:
+        return None
+    return sum(1 for expected in expected_values if label_matches(str(expected), actual_values)) / len(expected_values)
 
 
 def evaluate(kb: KnowledgeBase, cases: list[dict[str, Any]], k_hit: int = 3, k_recall: int = 5) -> dict[str, Any]:
@@ -99,6 +150,97 @@ def evaluate(kb: KnowledgeBase, cases: list[dict[str, Any]], k_hit: int = 3, k_r
     }
 
 
+def evaluate_observation_and_scoring(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    if not cases:
+        raise ValueError("No evaluation cases found")
+
+    intent_matches = 0
+    sentiment_matches = 0
+    temperature_matches = 0
+    action_matches = 0
+    false_sensitive_demographic_inferences = 0
+    pain_recalls: list[float] = []
+    objection_recalls: list[float] = []
+    buying_recalls: list[float] = []
+    topic_recalls: list[float] = []
+    recall_buckets = {
+        "pain_points": pain_recalls,
+        "objections": objection_recalls,
+        "buying_signals": buying_recalls,
+        "recommended_rag_topics": topic_recalls,
+    }
+    mismatches: list[dict[str, Any]] = []
+
+    for case in cases:
+        case_id = str(case.get("id", "<missing-id>"))
+        history = [str(item) for item in (case.get("history") or [])]
+        message = str(case.get("message", ""))
+        observation = build_observation(lead_id=case_id, channel="chat", message=message, history=history)
+        analysis = analyze_observation(observation)
+        lead_state = score_lead(case_id, history, message, analysis)
+        predicted_action = next_action_for_temperature(lead_state.temperature)
+
+        expected_observation = case.get("expected_observation") or {}
+        expected_scoring = case.get("expected_scoring") or {}
+
+        case_mismatches: dict[str, Any] = {"id": case_id}
+        if analysis.intent == expected_observation.get("intent"):
+            intent_matches += 1
+        else:
+            case_mismatches["intent"] = {"expected": expected_observation.get("intent"), "actual": analysis.intent}
+
+        if analysis.sentiment.label == expected_observation.get("sentiment"):
+            sentiment_matches += 1
+        else:
+            case_mismatches["sentiment"] = {"expected": expected_observation.get("sentiment"), "actual": analysis.sentiment.label}
+
+        if lead_state.temperature == expected_scoring.get("temperature"):
+            temperature_matches += 1
+        else:
+            case_mismatches["temperature"] = {"expected": expected_scoring.get("temperature"), "actual": lead_state.temperature, "score": lead_state.score}
+
+        if predicted_action == expected_scoring.get("next_best_action"):
+            action_matches += 1
+        else:
+            case_mismatches["next_best_action"] = {"expected": expected_scoring.get("next_best_action"), "actual": predicted_action}
+
+        for key, actual in [
+            ("pain_points", analysis.pain_points),
+            ("objections", analysis.objections),
+            ("buying_signals", analysis.buying_signals),
+            ("recommended_rag_topics", analysis.recommended_rag_topics),
+        ]:
+            expected_values = [str(value) for value in expected_observation.get(key, [])]
+            recall = list_recall(expected_values, actual)
+            if recall is not None:
+                recall_buckets[key].append(recall)
+                if recall < 1.0:
+                    case_mismatches[key] = {"expected": expected_values, "actual": actual, "recall": recall}
+
+        compliance = case.get("compliance") or {}
+        if not compliance.get("sensitive_inference_allowed", False) and (analysis.demographics.age_range or analysis.demographics.gender):
+            false_sensitive_demographic_inferences += 1
+            case_mismatches["sensitive_demographics"] = analysis.demographics.model_dump()
+
+        if len(case_mismatches) > 1:
+            mismatches.append(case_mismatches)
+
+    total = len(cases)
+    return {
+        "observation_scored_cases": total,
+        "intent_accuracy": intent_matches / total,
+        "sentiment_label_accuracy": sentiment_matches / total,
+        "pain_point_recall_approx": sum(pain_recalls) / len(pain_recalls) if pain_recalls else None,
+        "objection_recall_approx": sum(objection_recalls) / len(objection_recalls) if objection_recalls else None,
+        "buying_signal_recall_approx": sum(buying_recalls) / len(buying_recalls) if buying_recalls else None,
+        "recommended_topic_recall_approx": sum(topic_recalls) / len(topic_recalls) if topic_recalls else None,
+        "temperature_accuracy": temperature_matches / total,
+        "next_action_accuracy": action_matches / total,
+        "false_sensitive_demographic_inference_count": false_sensitive_demographic_inferences,
+        "observation_scoring_mismatches": mismatches,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate research JSONL fixtures and run TF-IDF retrieval smoke metrics.")
     parser.add_argument("--kb-fixture", type=Path, default=Path("research/fixtures/kb_documents.jsonl"))
@@ -111,6 +253,7 @@ def main() -> int:
     kb = load_kb(args.kb_fixture)
     cases = iter_jsonl(args.cases)
     result = evaluate(kb, cases, k_hit=args.k_hit, k_recall=args.k_recall)
+    result.update(evaluate_observation_and_scoring(cases))
 
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.out:

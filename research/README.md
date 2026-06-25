@@ -35,7 +35,7 @@ What combination of local/private knowledge ingestion, explainable observation s
 uv run python scripts/research_smoke_eval.py
 ```
 
-This validates both research JSONL fixture files and reports deterministic TF-IDF retrieval smoke metrics over the canned KB corpus, including `valid_jsonl_cases`, `valid_kb_documents`, `hit_rate_at_3`, `recall_at_5`, `mrr_at_5`, and `p95_retrieval_ms`.
+This validates both research JSONL fixture files and reports deterministic TF-IDF retrieval smoke metrics over the canned KB corpus, including `valid_jsonl_cases`, `valid_kb_documents`, `hit_rate_at_3`, `recall_at_5`, `mrr_at_5`, and `p95_retrieval_ms`. It also reports a non-failing baseline for the current rule-based observation analyzer and scoring rules, including intent/sentiment accuracy, approximate extraction recall, temperature/action accuracy, and sensitive-demographic inference count.
 
 ## Relationship to existing docs
 
