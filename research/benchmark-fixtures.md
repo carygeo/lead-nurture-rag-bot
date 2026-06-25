@@ -140,6 +140,32 @@ Use 10-20 multi-turn scenarios with labels:
 
 Metrics: qualified action rate, nurture appropriateness, objection recovery rate, disengagement protection, lead qualification completeness, sales handoff precision/recall, turns-to-correct-CTA.
 
+### Differentiation/demo fixture slice — 2026-06-24
+
+Focused slice: turn the product-wedge hypotheses into a demo script that is hard for broad GTM platforms or generic private-document chat tools to show in one local repo run.
+
+#### Verified source context
+
+- Salesforce Agentforce's public page says Agentforce brings together humans, applications, AI agents, and data; its SDR example engages prospects 24/7, answers questions, manages objections, and schedules meetings based on CRM and external data. Source: https://www.salesforce.com/agentforce/
+- HubSpot's Breeze AI page says its AI tools and agents are built into CRM; the page describes a prospecting agent that researches and delivers personalized outreach strategies, and a customer/account-assistant style output with next best steps, talking points, and a ready-to-send email draft. Source: https://www.hubspot.com/products/artificial-intelligence
+- Outreach's platform page positions Outreach as an agentic AI revenue platform unifying sales engagement, deal management, forecasting, and coaching. Source: https://www.outreach.ai/platform
+- Apollo's pricing page positions Apollo around sales intelligence, lead generation, email outreach, prospecting, inbound lead conversion, CRM export/sync, and a free sign-up path; a guessed `ai-sales-agent` product URL returned 404 in this environment and should not be used for product-specific claims. Sources: https://www.apollo.io/pricing ; attempted blocked/broken URL: https://www.apollo.io/product/ai-sales-agent
+- AnythingLLM's public page says users can chat with docs, use AI agents, and run locally/offline; its GitHub README surfaced source citations and document-chat support. Sources: https://anythingllm.com/ ; https://github.com/Mintplex-Labs/anything-llm
+
+#### Demo arc to encode in local fixtures
+
+1. **Private knowledge grounding:** ingest a small vertical corpus with approved proof, disallowed claims, pricing caveats, and persona notes. The lead asks a workflow-fit question; the bot must cite/cover only approved facts and avoid generic sales-agent claims.
+2. **Observation-to-score rationale:** the lead moves from pain + objection to budget/timeline/demo intent. The demo should expose the exact observed signals, retrieved topics, score/temperature, and next-best action rather than just producing persuasive copy.
+3. **Draft-before-send review gate:** a commercial email draft is valuable but not sendable until unsubscribe/address/reviewer checks pass. The demo should show `send_allowed=false`, `requires_human_review=true`, and a non-sales remediation action.
+
+New JSONL cases added to `research/fixtures/lead_nurture_eval_cases.jsonl`:
+
+- `demo_private_cited_warm_001` — tests warm-stage private-company knowledge grounding with source-oriented required facts and forbidden unsupported claims.
+- `demo_score_rationale_hot_001` — tests hot-lead escalation with explicit observed pain, budget/timeline/demo signals, and a sales handoff summary requirement.
+- `demo_draft_review_gate_001` — tests the compliance-gated draft-review differentiator by requiring a blocked send, human review, and missing-footer remediation.
+
+Unverified/hypothesis: these demo cases are proposed differentiation fixtures; they are not evidence that buyers prefer this workflow or that competitor products cannot be configured to approximate it. The verified claim is narrower: current public pages emphasize broad CRM/GTM agents or private-document chat, while this repo can demonstrate the combined local RAG + observable scoring + compliance-gated draft loop in reproducible fixtures.
+
 ## External datasets worth reusing without paid services
 
 These are not lead-nurture-specific, but useful for validating retrieval/evaluation plumbing:

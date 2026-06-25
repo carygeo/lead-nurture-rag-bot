@@ -226,3 +226,42 @@ Actionable insights / open questions:
 Confidence: Medium for competitive/context facts from current primary pages; low-to-medium for wedge hypotheses because they are product-discovery assumptions pending interviews. HubSpot report-specific and YC direct-article claims are blocked/broken.
 
 Next run recommendation: Rotate to differentiation/demo strategy by turning the product-wedge hypotheses into one concrete demo script and fixture additions for a cited, draft-before-send review queue.
+
+## 2026-06-24 22:43 EDT — Differentiation and demo strategy fixtures
+
+Focus question: What concrete local demo can show a differentiated lead-nurture intelligence loop rather than a generic sales AI agent, CRM assistant, or private-document chatbot?
+
+New findings:
+
+- Salesforce Agentforce's public page supports the broad enterprise AI-agent contrast: it describes Agentforce as bringing together humans, applications, AI agents, and data; its SDR example engages prospects 24/7, answers questions, manages objections, and schedules meetings based on CRM and external data.
+- HubSpot's Breeze AI page supports the CRM-native agent contrast: it describes AI tools/agents built into CRM, a prospecting agent that researches and delivers personalized outreach strategies, and next-best-step/talking-point/ready-to-send email-draft outputs.
+- Outreach's platform page supports the revenue-orchestration contrast: it positions Outreach as an agentic AI revenue platform unifying sales engagement, deal management, forecasting, and coaching.
+- AnythingLLM remains useful as the private/local RAG contrast: its product page says chat with docs and AI agents can run locally/offline, and the GitHub README surfaced document chat with source citations.
+- Apollo's pricing page remained reachable and supports the data/prospecting/email-outreach contrast; a guessed Apollo AI Sales Agent URL returned HTTP 404, so no product-specific claims were made from that URL.
+
+Key sources:
+
+- https://www.salesforce.com/agentforce/
+- https://www.hubspot.com/products/artificial-intelligence
+- https://www.outreach.ai/platform
+- https://www.apollo.io/pricing
+- https://www.apollo.io/product/ai-sales-agent — attempted; returned HTTP 404 in this environment.
+- https://anythingllm.com/
+- https://github.com/Mintplex-Labs/anything-llm
+
+Measurable output produced:
+
+- Added a dated differentiation/demo slice to `research/benchmark-fixtures.md`.
+- Added 3 demo-oriented JSONL fixtures to `research/fixtures/lead_nurture_eval_cases.jsonl`: private cited warm lead, hot score-rationale handoff, and compliance-gated draft review.
+- Added differentiation/demo sources and the Apollo broken-source note to `research/sources.md`.
+- Revalidated `research/fixtures/lead_nurture_eval_cases.jsonl`: 12 valid JSONL cases.
+
+Actionable insights / open questions:
+
+- The demo should show three panes: retrieved private knowledge/citations, observed lead signals with score rationale, and draft/review/compliance state. That is more specific than “AI writes sales email.”
+- Keep competitor claims narrow: public pages verify broad positioning, not an absence of configurable score rationales or review gates in every competitor.
+- Next implementation question: should the repo add a tiny canned demo corpus so these fixtures can be exercised end-to-end without inventing chunk IDs?
+
+Confidence: Medium-high for cited public positioning and local fixture validity; medium for differentiation because it is a demo hypothesis, not buyer-demand proof. Apollo AI-sales-agent URL is blocked/broken (404).
+
+Next run recommendation: Rotate back to competitive matrix or evaluation harness by adding a minimal canned campaign corpus and a deterministic fixture-runner that checks required/forbidden facts and compliance flags.

@@ -76,6 +76,15 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - Y Combinator Startup Library — https://www.ycombinator.com/library — reachable methodology background for startup/customer-discovery material; the previously known direct “talk to users” slug returned 404 in this environment.
 - Y Combinator broken slug — https://www.ycombinator.com/library/6g-how-to-talk-to-users — returned HTTP 404 on 2026-06-24; logged as a blocked/broken source, not used for substantive claims.
 
+## Differentiation and demo strategy
+
+- Salesforce Agentforce — https://www.salesforce.com/agentforce/ — primary source for broad enterprise AI-agent positioning; fetched page described humans, applications, AI agents, and data, and an SDR example that engages prospects 24/7, handles questions/objections, and schedules meetings from CRM/external data.
+- HubSpot Breeze AI — https://www.hubspot.com/products/artificial-intelligence — primary source for CRM-native AI-agent positioning; fetched page described AI tools/agents built into CRM, a prospecting agent for personalized outreach strategies, and next-best-steps/talking-points/ready-to-send email-draft capabilities.
+- Outreach platform — https://www.outreach.ai/platform — primary source for agentic AI revenue platform positioning across sales engagement, deal management, forecasting, and coaching.
+- Apollo pricing/product navigation — https://www.apollo.io/pricing — primary source for Apollo positioning around sales intelligence, lead generation, email outreach, prospecting, inbound conversion, and CRM export/sync.
+- Apollo broken AI-sales-agent URL — https://www.apollo.io/product/ai-sales-agent — returned HTTP 404 on 2026-06-24; logged as a blocked/broken source and not used for product-specific claims.
+- AnythingLLM product and GitHub — https://anythingllm.com/ ; https://github.com/Mintplex-Labs/anything-llm — primary sources for local/offline document chat, AI agents, private operation, and source-citation capability.
+
 ## UX / rubric inspiration
 
 - Nielsen Norman Group usability heuristics — https://www.nngroup.com/articles/ten-usability-heuristics/ — useful for human-review queue and response review UX rubric.
