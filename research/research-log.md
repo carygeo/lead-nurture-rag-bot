@@ -336,3 +336,39 @@ Actionable insights / open questions:
 Confidence: Medium-high for fetched 11x, Artisan, Salesloft/Drift, and Pipedrive page claims; low for exact pricing and blocked products because several URLs were 403, Cloudflare-protected, dynamic, or 404.
 
 Next run recommendation: Rotate to evaluation harness by adding a tiny executable research smoke-eval script for JSONL validation and retrieval hit@k, using the existing canned KB fixture.
+
+## 2026-06-25 00:26 EDT — Evaluation harness executable smoke test
+
+Focus question: Can the prior one-off JSONL/retrieval validation snippet be turned into a versioned, repeatable research smoke test that future loops and CI can run without paid services?
+
+New findings:
+
+- The repo's current `KnowledgeChunk` Pydantic model is sufficient to validate the canned KB fixture rows before retrieval assertions run.
+- The current TF-IDF `KnowledgeBase.search` path can be exercised directly from research fixtures by loading fixture chunks into `kb.chunks` and calling `_reindex()`; this keeps the benchmark grounded in repo behavior instead of a separate mock retriever.
+- The existing 12 eval cases and 17 KB chunks remain internally consistent: all 12 cases have expected retrieval IDs and at least one expected top-3 retrieval hit.
+- This smoke test is intentionally narrow: it validates fixture integrity and retrieval metrics only, not observation extraction, scoring/action, response groundedness, or compliance gates.
+
+Key sources:
+
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/models.py
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/retriever.py
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/scripts/research_smoke_eval.py
+- Local research docs reviewed: `research/evaluation-methodology.md`, `research/benchmark-fixtures.md`, and fixture files under `research/fixtures/`.
+
+Measurable output produced:
+
+- Added `scripts/research_smoke_eval.py`, a versioned executable that validates both JSONL fixture files, computes `hit_rate_at_3`, `recall_at_5`, `mrr_at_5`, and `p95_retrieval_ms`, optionally writes JSON output, and exits non-zero on missing expected retrieval IDs or top-3 misses.
+- Updated `research/README.md` to point the default validation command at the new script.
+- Updated `research/benchmark-fixtures.md` with the executable smoke-eval slice, current observed metrics, and limitations.
+- Updated `research/sources.md` with the new script as a repo implementation source.
+- Validation result from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json`: `valid_kb_documents=17`, `valid_jsonl_cases=12`, `scored_retrieval_cases=12`, `hit_count_at_3=12`, `hit_rate_at_3=1.0`, `recall_at_5=0.9583333333333334`, `mrr_at_5=0.9583333333333334`, `p95_retrieval_ms=2.7474022014757793`, `no_hit_cases=[]`.
+
+Actionable insights / open questions:
+
+- Add a follow-on observation/scoring evaluator that runs the deterministic `LeadNurtureAgent` or observation analyzer against the same cases and reports intent/action accuracy.
+- Add response-constraint checks for required facts, forbidden claims, max words, and CTA type; the fixture schema already contains these labels.
+- Decide whether future CI should commit benchmark JSON reports, store them as artifacts, or only print them in job logs.
+
+Confidence: High for fixture validity and retrieval smoke metrics because the script uses current repo models/retriever and completed successfully; medium for benchmark stability because TF-IDF ranking can shift when fixture text or metadata changes.
+
+Next run recommendation: Continue the evaluation-harness slice by extending the script to run observation extraction and score/action checks against `expected_observation` and `expected_scoring`, then rotate back to compliance fixtures if unsafe-action failures appear.

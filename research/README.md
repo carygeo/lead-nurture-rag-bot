@@ -32,19 +32,10 @@ What combination of local/private knowledge ingestion, explainable observation s
 ## Suggested validation command
 
 ```bash
-python3 - <<'PY'
-import json
-from pathlib import Path
-path = Path('research/fixtures/lead_nurture_eval_cases.jsonl')
-count = 0
-for line_no, line in enumerate(path.read_text().splitlines(), 1):
-    if not line.strip():
-        continue
-    json.loads(line)
-    count += 1
-print(f'valid_jsonl_cases={count}')
-PY
+uv run python scripts/research_smoke_eval.py
 ```
+
+This validates both research JSONL fixture files and reports deterministic TF-IDF retrieval smoke metrics over the canned KB corpus, including `valid_jsonl_cases`, `valid_kb_documents`, `hit_rate_at_3`, `recall_at_5`, `mrr_at_5`, and `p95_retrieval_ms`.
 
 ## Relationship to existing docs
 

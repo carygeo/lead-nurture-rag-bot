@@ -229,3 +229,37 @@ PY
 ```
 
 Observed result on 2026-06-24: `valid_kb_documents=17`, `valid_jsonl_cases=12`, `retrieval_hit_rate_at_3=12/12`.
+
+### Executable research smoke-eval script — 2026-06-25
+
+Focused slice: convert the prior copied one-off fixture validation snippet into a versioned script that can be run by future autonomous loops, CI, or a developer without paid services.
+
+New script:
+
+- `scripts/research_smoke_eval.py` validates `research/fixtures/kb_documents.jsonl` as `KnowledgeChunk` rows, validates `research/fixtures/lead_nurture_eval_cases.jsonl` as JSON objects, loads the fixture KB into the current TF-IDF `KnowledgeBase`, and evaluates each case's `expected_retrieval.chunk_ids`.
+
+Command:
+
+```bash
+uv run python scripts/research_smoke_eval.py --out .eval/latest.json
+```
+
+Current output on 2026-06-25:
+
+- `valid_kb_documents=17`
+- `valid_jsonl_cases=12`
+- `scored_retrieval_cases=12`
+- `hit_count_at_3=12`
+- `hit_rate_at_3=1.0`
+- `recall_at_5=0.9583333333333334`
+- `mrr_at_5=0.9583333333333334`
+- `p95_retrieval_ms=2.7474022014757793`
+- `no_hit_cases=[]`
+
+Design notes grounded in repo implementation:
+
+- `KnowledgeChunk` validation uses the current Pydantic model in `src/lead_nurture_rag/models.py`.
+- Retrieval uses the existing `KnowledgeBase.search` path in `src/lead_nurture_rag/retriever.py`, including `metadata_to_search_text` enrichment via `_reindex()`.
+- The script exits non-zero if any case lacks expected retrieval IDs or has no top-3 hit, making it a minimal regression gate rather than only a reporting utility.
+
+Unverified/hypothesis: this script does not yet test observation extraction, lead scoring, response groundedness, or compliance-gate behavior. It is an executable retrieval/fixture integrity baseline that future slices should extend.
