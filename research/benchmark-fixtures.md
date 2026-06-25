@@ -183,6 +183,29 @@ Limitations:
 - The gate is conservative and product-defined. It is not a legal-compliance guarantee and does not measure inbox placement/deliverability.
 - Observation/scoring metrics remain intentionally exposed as weak baselines; the compliance gate fixes sendability decisions, not intent/topic extraction.
 
+### Provider-event normalizer fixtures — 2026-06-25
+
+Focused slice: add raw provider-event fixtures and a deterministic normalizer check before selecting a real email provider adapter.
+
+What changed:
+
+- Added `research/fixtures/provider_events.jsonl` with 8 synthetic raw-event cases spanning SendGrid, Postmark, Amazon SES, and Mailgun complaint, unsubscribe, bounce, dropped, and permanent-failure signals.
+- Added `src/lead_nurture_rag/provider_events.py::ProviderEventNormalizer`, which maps provider-specific event names into local `ComplianceGate` inputs such as `provider_event_types`, `suppression_reason`, `must_stop_contact`, and `send_allowed`.
+- Extended `scripts/research_smoke_eval.py` to validate provider-event JSONL and fail on normalization mismatches.
+- Added focused unit tests in `tests/test_provider_events.py`.
+
+Current output from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json` on 2026-06-25:
+
+- `valid_jsonl_cases=14`
+- `valid_kb_documents=17`
+- `valid_provider_event_cases=8`
+- `provider_event_normalization_mismatches=[]`
+- `compliance_gate_checked_cases=8`
+- `compliance_gate_send_allowed_accuracy=1.0`
+- Retrieval remains stable: `hit_rate_at_3=1.0`, `recall_at_5=0.9166666666666666`, `mrr_at_5=0.9642857142857143`
+
+Verified source basis: official SendGrid, Postmark, Amazon SES, and Mailgun event/webhook docs were reachable in this run and support the existence of complaint/spam-report, bounce/failure, unsubscribe, and event-notification surfaces. The fixture payloads are synthetic/provider-inspired and should be replaced or supplemented with captured sandbox payloads before production use.
+
 ## Benchmark set F: Business outcome proxies
 
 Use 10-20 multi-turn scenarios with labels:

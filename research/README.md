@@ -22,6 +22,7 @@ What combination of local/private knowledge ingestion, explainable observation s
 - `open-questions.md` — unresolved product, market, technical, compliance, and methodology questions.
 - `fixtures/lead_nurture_eval_cases.jsonl` — seed benchmark cases.
 - `fixtures/kb_documents.jsonl` — synthetic local campaign/policy corpus with stable chunk IDs for retrieval smoke tests.
+- `fixtures/provider_events.jsonl` — synthetic provider-event normalization fixtures for SendGrid, Postmark, Amazon SES, and Mailgun suppression signals.
 
 ## Initial measurable baselines
 

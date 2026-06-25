@@ -12,6 +12,7 @@ from lead_nurture_rag.agent import score_lead
 from lead_nurture_rag.compliance_gate import ComplianceGate
 from lead_nurture_rag.models import KnowledgeChunk
 from lead_nurture_rag.observation import analyze_observation, build_observation
+from lead_nurture_rag.provider_events import ProviderEventNormalizer
 from lead_nurture_rag.retriever import KnowledgeBase
 
 
@@ -425,10 +426,51 @@ def evaluate_compliance_gate_against_fixtures(cases: list[dict[str, Any]]) -> di
     }
 
 
+def evaluate_provider_event_normalization(provider_event_cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare raw provider-event fixtures with normalized ComplianceGate inputs."""
+    mismatches: list[dict[str, Any]] = []
+
+    for row in provider_event_cases:
+        case_id = str(row.get("id", "<missing-id>"))
+        provider = str(row.get("provider", ""))
+        raw_event = row.get("raw_event") or {}
+        expected = row.get("expected_normalized_compliance") or {}
+        if not isinstance(raw_event, dict):
+            raise ValueError(f"provider event fixture {case_id}: raw_event must be an object")
+        if not isinstance(expected, dict):
+            raise ValueError(f"provider event fixture {case_id}: expected_normalized_compliance must be an object")
+
+        actual = ProviderEventNormalizer.normalize(provider, raw_event)
+        case_mismatches: dict[str, Any] = {"id": case_id}
+        for key, expected_value in expected.items():
+            actual_value = actual.get(key)
+            if isinstance(expected_value, list):
+                if set(str(item) for item in expected_value) != set(str(item) for item in (actual_value or [])):
+                    case_mismatches[key] = {"expected": expected_value, "actual": actual_value}
+            elif actual_value != expected_value:
+                case_mismatches[key] = {"expected": expected_value, "actual": actual_value}
+
+        gate_result = ComplianceGate.evaluate_pre_send(actual)
+        if gate_result.send_allowed is not expected.get("send_allowed"):
+            case_mismatches["gate_send_allowed"] = {
+                "expected": expected.get("send_allowed"),
+                "actual": gate_result.send_allowed,
+            }
+
+        if len(case_mismatches) > 1:
+            mismatches.append(case_mismatches)
+
+    return {
+        "valid_provider_event_cases": len(provider_event_cases),
+        "provider_event_normalization_mismatches": mismatches,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate research JSONL fixtures and run TF-IDF retrieval smoke metrics.")
     parser.add_argument("--kb-fixture", type=Path, default=Path("research/fixtures/kb_documents.jsonl"))
     parser.add_argument("--cases", type=Path, default=Path("research/fixtures/lead_nurture_eval_cases.jsonl"))
+    parser.add_argument("--provider-events", type=Path, default=Path("research/fixtures/provider_events.jsonl"))
     parser.add_argument("--out", type=Path, default=None, help="Optional JSON output path")
     parser.add_argument("--k-hit", type=int, default=3)
     parser.add_argument("--k-recall", type=int, default=5)
@@ -436,10 +478,12 @@ def main() -> int:
 
     kb = load_kb(args.kb_fixture)
     cases = iter_jsonl(args.cases)
+    provider_event_cases = iter_jsonl(args.provider_events) if args.provider_events.exists() else []
     result = evaluate(kb, cases, k_hit=args.k_hit, k_recall=args.k_recall)
     result.update(evaluate_observation_and_scoring(cases))
     result.update(evaluate_compliance_fixture_invariants(cases))
     result.update(evaluate_compliance_gate_against_fixtures(cases))
+    result.update(evaluate_provider_event_normalization(provider_event_cases))
 
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.out:
@@ -452,6 +496,7 @@ def main() -> int:
         or result["cases_missing_expected_retrieval"]
         or result["compliance_fixture_invariant_violations"]
         or result["compliance_gate_mismatches"]
+        or result["provider_event_normalization_mismatches"]
     ):
         return 1
     return 0

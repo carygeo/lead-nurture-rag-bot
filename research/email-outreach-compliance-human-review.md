@@ -184,6 +184,32 @@ Current deterministic blockers:
 
 Unverified/hypothesis: this is a product/engineering guardrail and fixture baseline, not a legal opinion. Exact enum names and policy thresholds need review before production email sending.
 
+## Provider-event normalizer fixture slice — 2026-06-25
+
+Focus: add a thin raw-provider-event normalization boundary in front of `ComplianceGate`, so future SendGrid/Postmark/Amazon SES/Mailgun webhooks can become typed suppression inputs before any nurture draft or send path runs.
+
+### Verified source availability in this run
+
+The official docs for SendGrid Event Webhook, Postmark Webhooks, Amazon SES event notifications, and Mailgun tracking messages all returned HTTP 200 from this environment at 2026-06-25 03:32 EDT. These docs support the narrow finding that provider event systems expose bounce, complaint/spam-report, unsubscribe, failed/dropped, or subscription-change signals that should feed local suppression state. Sources: https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event ; https://postmarkapp.com/developer/webhooks/webhooks-overview ; https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html ; https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+### Implemented local boundary
+
+`src/lead_nurture_rag/provider_events.py` now defines `ProviderEventNormalizer.normalize(provider, raw_event)`, which maps a deliberately small fixture subset into the `compliance` dictionary consumed by `ComplianceGate`:
+
+- SendGrid `spamreport` -> `provider_event_types=["spam_report", "complaint"]`, `suppression_reason="provider_spam_complaint"`.
+- SendGrid `group_unsubscribe`/`unsubscribe` -> `provider_event_types=["unsubscribe"]`, `suppression_reason="provider_unsubscribe"`.
+- Postmark `RecordType=SpamComplaint` -> spam complaint suppression; `RecordType=Bounce` with `Type=HardBounce` -> hard-bounce suppression.
+- Amazon SES `notificationType=Complaint` -> spam complaint suppression; `notificationType=Bounce` with `bounceType=Permanent` -> hard-bounce suppression.
+- Mailgun `event=complained` -> spam complaint suppression; `event=failed` with `severity=permanent` -> hard-bounce/drop suppression.
+
+The normalizer is intentionally not a complete provider adapter: it does not verify webhook signatures, persist raw payload hashes, deduplicate event IDs, or cover every vendor event. Its purpose is to make the adapter boundary executable and auditable before a real mailbox/sender integration.
+
+### Harness result
+
+`research/fixtures/provider_events.jsonl` adds 8 raw provider-event fixtures with expected normalized compliance fields. `scripts/research_smoke_eval.py` now validates those fixtures and compares normalizer output plus `ComplianceGate` sendability against expected labels. Latest run: `valid_provider_event_cases=8`, `provider_event_normalization_mismatches=[]`, `compliance_gate_mismatches=[]`, with existing lead-nurture cases and KB fixtures still valid.
+
+Unverified/hypothesis: the raw JSON payloads are synthetic provider-inspired fixtures, not copied webhook samples or a full contract test suite. Exact event payload shapes, signature verification, retry semantics, and suppression-list APIs must be validated against the selected provider before production use.
+
 ## Methodology backlog items
 
 1. Build a jurisdiction matrix for US CAN-SPAM, Canada CASL, UK PECR/UK GDPR, EU ePrivacy/GDPR, and Australia Spam Act: consent basis, B2B exceptions, opt-out timing, sender identity, address/footer, penalties.

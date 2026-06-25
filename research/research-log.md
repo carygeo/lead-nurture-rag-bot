@@ -526,3 +526,40 @@ Actionable insights / open questions:
 Confidence: High for fixture validity and deterministic gate metrics because the smoke eval and unit tests passed; high for cited source reachability; medium for exact gate thresholds and enum names because they are implementation hypotheses pending product/legal review. No legal compliance or deliverability performance is claimed.
 
 Next run recommendation: Rotate to integration architecture by adding raw provider-event JSONL fixtures plus a normalizer spec/table that maps SendGrid/Postmark/Mailgun/SES bounce, complaint, and unsubscribe events into `ComplianceGate` inputs.
+
+## 2026-06-25 03:32 EDT — Integration architecture: provider-event normalizer fixtures
+
+Focus question: Can raw email-provider event fixtures from SendGrid, Postmark, Amazon SES, and Mailgun be normalized into the repo's local `ComplianceGate` inputs before any real sender/webhook adapter is added?
+
+New findings:
+
+- Official SendGrid Event Webhook, Postmark Webhooks, Amazon SES event-notification, and Mailgun tracking-message docs all returned HTTP 200 in this run, supporting provider-event ingestion as a source-backed integration boundary.
+- Provider events should be normalized before lead scoring or draft generation: spam complaints, complaints, hard/permanent bounces, dropped/permanent failures, and unsubscribe/group-unsubscribe events all map cleanly to `send_allowed=false` fixture expectations.
+- A small normalizer can keep raw-provider differences out of `ComplianceGate`: the gate consumes local fields (`provider_event_types`, `suppression_reason`, `must_stop_contact`, `send_allowed`) while provider-specific names remain in an adapter layer.
+- The current fixture payloads are synthetic/provider-inspired, not complete official contract tests; exact payload schemas, signatures, retries, event IDs, and suppression-list APIs remain provider-specific follow-up work.
+
+Key sources:
+
+- https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event
+- https://postmarkapp.com/developer/webhooks/webhooks-overview
+- https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html
+- https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+Measurable output produced:
+
+- Added `src/lead_nurture_rag/provider_events.py` with `ProviderEventNormalizer.normalize` for SendGrid, Postmark, Amazon SES, and Mailgun event subsets.
+- Added `research/fixtures/provider_events.jsonl` with 8 raw provider-event normalization cases.
+- Extended `scripts/research_smoke_eval.py` to validate provider-event JSONL and fail on normalization mismatches.
+- Added `tests/test_provider_events.py` with 4 focused unit tests.
+- Updated `research/email-outreach-compliance-human-review.md`, `research/benchmark-fixtures.md`, `research/README.md`, and `research/sources.md` with the integration slice and source basis.
+- Validation result from `uv run python scripts/research_smoke_eval.py --out .eval/latest.json && uv run pytest tests/test_compliance_gate.py tests/test_provider_events.py -q`: `valid_kb_documents=17`, `valid_jsonl_cases=14`, `valid_provider_event_cases=8`, `hit_rate_at_3=1.0`, `recall_at_5=0.9166666666666666`, `mrr_at_5=0.9642857142857143`, `compliance_gate_checked_cases=8`, `compliance_gate_send_allowed_accuracy=1.0`, `provider_event_normalization_mismatches=[]`, `compliance_gate_mismatches=[]`, and 8 unit tests passed.
+
+Actionable insights / open questions:
+
+- Choose one first email provider and replace/supplement the synthetic fixture payloads with captured sandbox webhook examples plus signature-verification tests.
+- Add a provider-event persistence/audit design (`provider`, `event_id`, `message_id`, `lead_id`, `raw_json_hash`, `normalized_compliance`, `received_at`) before real webhook ingestion.
+- Keep provider normalization separate from scoring/response generation: suppression decisions must update lead/contact state before any model-authored nurture draft is considered.
+
+Confidence: High for the deterministic fixture validation and unit-test results; medium-high for the provider-event category mapping from official docs; medium for exact raw payload field shapes because the new JSONL rows are synthetic provider-inspired fixtures, not complete vendor contract captures. No legal compliance or deliverability performance is claimed.
+
+Next run recommendation: Rotate to competitive matrix or product wedge; if staying on integration architecture, design the provider-event persistence/audit table and first-provider selection criteria rather than expanding more synthetic event rows.
