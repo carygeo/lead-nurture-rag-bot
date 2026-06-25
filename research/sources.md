@@ -24,6 +24,10 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - Canada CASL — https://ised-isde.canada.ca/site/canada-anti-spam-legislation/en — commercial electronic message consent regime.
 - FCC robocalls/texts guide — https://www.fcc.gov/consumers/guides/stop-unwanted-robocalls-and-texts — SMS/call expansion risk.
 - California CCPA — https://oag.ca.gov/privacy/ccpa — privacy rights context.
+- Twilio SendGrid Event Webhook reference — https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event — official event categories for delivery and engagement events, including bounces, spam reports, and unsubscribes.
+- Postmark Webhooks overview — https://postmarkapp.com/developer/webhooks/webhooks-overview — official webhook mechanism for bounce, delivery, click/open, spam complaint, subscription-change, and inbound events.
+- Amazon SES event notifications — https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html — official bounce/complaint notification and sending-event monitoring options.
+- Mailgun tracking messages docs — https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/ — official tracking docs for unsubscribes, spam complaints, failures, deliveries, webhooks, and events.
 
 ## Competitive landscape: sales/GTM platforms
 

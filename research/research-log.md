@@ -114,3 +114,41 @@ Actionable insights / open questions:
 Confidence: High for cited regulatory/provider constraints; medium for architecture details because they require product/legal review before implementation.
 
 Next run recommendation: Convert compliance findings into JSONL fixtures and model invariants that CI can enforce.
+
+## 2026-06-24 21:00 EDT — Compliance fixtures and provider-event guardrails
+
+Focus question: How should the offline benchmark fixtures encode email compliance blockers, provider events, and pre-send human-review gates for the future email adapter?
+
+New findings:
+
+- Verified current access to FTC CAN-SPAM, Gmail sender guidelines, Yahoo sender best practices, and major provider webhook/notification docs. None were blocked in this run.
+- Provider events are compliance inputs, not merely analytics: SendGrid, Postmark, Amazon SES, and Mailgun official docs expose webhook/notification/event surfaces for bounces, complaints/spam reports, unsubscribes, delivery failures, and related events.
+- A future email adapter should run compliance checks before draft generation and again before send; provider spam complaints and hard bounces should update suppression state before any model-authored follow-up is allowed.
+- Fixture schema needs explicit local assertions such as `send_allowed`, `suppression_reason`, `requires_human_review`, `provider_event_types`, and `missing_required_fields` so CI can fail on unsafe sendability, not just poor chat quality.
+
+Key sources:
+
+- https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- https://support.google.com/a/answer/81126
+- https://senders.yahooinc.com/best-practices/
+- https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event
+- https://postmarkapp.com/developer/webhooks/webhooks-overview
+- https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html
+- https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+Measurable output produced:
+
+- Added 4 compliance-focused JSONL cases to `research/fixtures/lead_nurture_eval_cases.jsonl` for hostile opt-out, provider spam complaint, hard bounce, and missing unsubscribe/postal-address pre-send blocker.
+- Documented the compliance-gate fixture extension in `research/benchmark-fixtures.md`.
+- Added provider-event sources to `research/sources.md`.
+- Added provider-event compliance finding to `research/email-outreach-compliance-human-review.md`.
+
+Actionable insights / open questions:
+
+- Add a real `ComplianceGate` interface before sender integration; it should return typed blocked-send reasons, not just free-text warnings.
+- The current app action enum only has `continue_nurture`, `offer_case_study`, and `schedule_contact`; future email mode likely needs explicit non-send actions such as `honor_unsubscribe`, `block_send`, and `internal_suppression`.
+- Confirm which provider API will be first so event names and payload fields can move from proposed harness fields to concrete adapter fixtures.
+
+Confidence: High for verified source availability and provider-event categories; medium for proposed fixture field names because they are local design hypotheses pending implementation.
+
+Next run recommendation: Focus on integration architecture by mapping a minimal `ComplianceGate` + email provider webhook adapter data model onto the current SQLite/agent loop.
