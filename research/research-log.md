@@ -152,3 +152,39 @@ Actionable insights / open questions:
 Confidence: High for verified source availability and provider-event categories; medium for proposed fixture field names because they are local design hypotheses pending implementation.
 
 Next run recommendation: Focus on integration architecture by mapping a minimal `ComplianceGate` + email provider webhook adapter data model onto the current SQLite/agent loop.
+
+## 2026-06-24 21:34 EDT — Integration architecture adapter boundary
+
+Focus question: What is the smallest source-backed email/CRM integration boundary that preserves the repo's local-first observation/scoring loop while adding compliance gates and human review?
+
+New findings:
+
+- SendGrid, Postmark, and Mailgun official docs support a provider-webhook normalization pattern for inbound email replies before calling the current `LeadNurtureAgent.respond` loop.
+- Close's developer portal explicitly describes pushing leads, contacts, activities, and custom data via REST API, and syncing data out with webhooks/event log; this makes Close a comparatively small CRM export target for a first adapter hypothesis.
+- HubSpot docs were reachable but dynamic/static extraction did not expose enough details in this run; HubSpot mapping remains blocked pending manual browser or API-reference validation.
+- Salesforce REST API docs returned HTTP 403 from this environment, so no Salesforce object-mapping claims were made.
+
+Key sources:
+
+- https://www.twilio.com/docs/sendgrid/for-developers/parsing-email/setting-up-the-inbound-parse-webhook
+- https://postmarkapp.com/developer/user-guide/inbound
+- https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/receive-http
+- https://developer.close.com/
+- https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide
+- https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm
+
+Measurable output produced:
+
+- Added an integration architecture slice to `research/email-outreach-compliance-human-review.md` with a proposed adapter boundary, local data-model deltas, and CI invariants.
+- Added email/CRM integration sources and blocked-source notes to `research/sources.md`.
+- Added two integration-focused technical open questions to `research/open-questions.md`.
+
+Actionable insights / open questions:
+
+- Build the first implementation as provider inbound webhook -> normalizer -> compliance gate -> draft queue, not provider send automation.
+- Prefer a narrow CRM export (`score`, `temperature`, `next_action`, `rationale`, `review_status`) before two-way CRM sync.
+- Manually validate HubSpot/Salesforce docs in a browser before committing to object mappings or marketplace positioning.
+
+Confidence: Medium-high for inbound email provider webhook pattern and Close API use-case fit from primary docs; low for HubSpot/Salesforce mappings because current access was dynamic/blocked.
+
+Next run recommendation: Rotate to product wedge/customer discovery and turn the integration finding into 5-7 interview questions about whether founders want a draft queue, CRM export, or send-capable automation first.

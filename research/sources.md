@@ -57,6 +57,15 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - LangChain — https://github.com/langchain-ai/langchain
 - LlamaIndex — https://github.com/run-llama/llama_index
 
+## Integration architecture: email/CRM APIs
+
+- SendGrid Inbound Parse Webhook — https://www.twilio.com/docs/sendgrid/for-developers/parsing-email/setting-up-the-inbound-parse-webhook — primary source for parsing inbound emails into webhooks before normalization.
+- Postmark inbound processing — https://postmarkapp.com/developer/user-guide/inbound — primary source for inbound email delivered to applications via formatted JSON webhooks.
+- Mailgun receiving messages via HTTP/routes — https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/receive-http — primary source for routing received messages to HTTP endpoints and parsed payload fields.
+- Close developer portal — https://developer.close.com/ — primary source for REST API use cases around leads, contacts, activities, custom data, webhooks, and event logs.
+- HubSpot CRM contacts/objects/webhooks docs — https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide ; https://developers.hubspot.com/docs/api-reference/crm-objects-v3/guide ; https://developers.hubspot.com/docs/api/webhooks — reachable but JavaScript-heavy/static extraction was insufficient in the 2026-06-24 integration-architecture run.
+- Salesforce REST API intro — https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm — attempted in the 2026-06-24 integration-architecture run; blocked by HTTP 403 from this environment.
+
 ## UX / rubric inspiration
 
 - Nielsen Norman Group usability heuristics — https://www.nngroup.com/articles/ten-usability-heuristics/ — useful for human-review queue and response review UX rubric.

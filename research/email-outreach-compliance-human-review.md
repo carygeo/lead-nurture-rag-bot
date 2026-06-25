@@ -39,6 +39,52 @@ Scope: initial repo research for future email adapter architecture: inbound webh
 - Minimize/instrument profiling: avoid inferring sensitive attributes; when scoring uses personal data, maintain explanation fields and allow manual override/deletion.
 - Build tests around compliance invariants: suppressed leads never produce sendable messages; unsubscribe language is preserved; approvals are required; provider complaint/bounce events block future outreach.
 
+## Integration architecture slice — 2026-06-24
+
+Focus: map the current local chat loop (`LeadNurtureAgent.respond`, `ConversationStore`, observations, lead score/action) onto a minimal future email/CRM adapter without changing the repo's local-first prototype boundary.
+
+### Verified integration facts from current primary sources
+
+- **Inbound email can be normalized into webhook payloads before reaching the agent.** SendGrid's Inbound Parse Webhook docs describe configuring inbound parse to process/parse incoming email; Postmark's inbound processing docs say inbound emails are processed and delivered to the application via webhook in formatted JSON; Mailgun's receiving docs describe receiving messages via HTTP through a route `forward()` action and expose parsed fields such as message body/attachments. Sources: https://www.twilio.com/docs/sendgrid/for-developers/parsing-email/setting-up-the-inbound-parse-webhook ; https://postmarkapp.com/developer/user-guide/inbound ; https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/receive-http
+- **Close is a plausible first CRM adapter target because its developer portal explicitly supports pushing leads, contacts, activities, and custom data into Close via REST API, and syncing data out with webhooks/event log.** This fits the repo's small `leads`, `turns`, and `observations` store better than a full enterprise CRM integration. Source: https://developer.close.com/
+- **HubSpot developer docs were reachable but rendered as a JavaScript-heavy/dynamic page from this environment; the static fetch did not expose enough content to verify contact/custom-object details in this run.** Treat HubSpot contact/custom-object mapping as blocked pending manual browser/API-reference validation. Sources attempted: https://developers.hubspot.com/docs/api-reference/crm-contacts-v3/guide ; https://developers.hubspot.com/docs/api-reference/crm-objects-v3/guide ; https://developers.hubspot.com/docs/api/webhooks
+- **Salesforce REST API docs were blocked with HTTP 403 from this environment.** Do not make Salesforce object-mapping claims from this run. Source attempted: https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/intro_rest.htm
+
+### Proposed minimal adapter boundary (hypothesis, not yet implemented)
+
+Keep the current agent as the intelligence core and add adapters around it:
+
+```text
+Inbound email provider webhook
+  -> EmailNormalizer(email provider payload -> clean_body, sender, thread_id, provider_message_id)
+  -> IdentityMapper(sender/thread/campaign -> lead_id)
+  -> ComplianceGate.pre_draft(lead_id, campaign_id, provider_events, suppression state)
+  -> LeadNurtureAgent.respond(lead_id, history, clean_body, company_name)
+  -> DraftRecord(reply, next_action, observation, score, retrieved_context, blocked_reasons)
+  -> HumanReviewQueue
+  -> ComplianceGate.pre_send(approval, required footer/unsubscribe/address, stale-thread check)
+  -> Provider sender API only after approval
+  -> CRMExporter(summary, score, temperature, next_action, citations, review status)
+```
+
+### Minimal local data-model deltas to research before implementation
+
+- `email_identities`: `lead_id`, `email`, `domain`, `crm_contact_id`, `provider`, `created_at`, `last_seen_at`.
+- `email_threads`: `thread_id`, `lead_id`, `provider_thread_id`, `campaign_id`, `last_provider_message_id`, `last_inbound_at`, `last_outbound_at`.
+- `drafts`: `draft_id`, `lead_id`, `thread_id`, `body`, `subject`, `next_action`, `score_snapshot`, `retrieved_context_ids`, `blocked_reasons`, `created_at`.
+- `review_events`: `draft_id`, `reviewer_id`, `decision`, `edited_body_hash`, `approved_at`, `expires_at`.
+- `provider_events`: `provider`, `event_id`, `event_type`, `message_id`, `lead_id`, `thread_id`, `received_at`, `raw_json_hash`, `suppression_effect`.
+- `crm_exports`: `crm_system`, `crm_object_id`, `lead_id`, `export_type`, `exported_at`, `status`, `error`.
+
+These field names are local design hypotheses. The source-backed requirement is the need to ingest inbound email webhooks/provider events and export lead/contact/activity-like records; exact schemas should be provider-specific once the first integration target is selected.
+
+### Architecture invariants for fixtures/CI
+
+1. A provider complaint, hard bounce, or unsubscribe event must update suppression state before any agent-authored follow-up is considered sendable.
+2. `LeadNurtureAgent.respond` may draft language, but no provider send call should be reachable without a fresh human-review approval and a passing `pre_send` gate.
+3. CRM export should carry score/action/rationale as advisory intelligence, not as evidence of legal compliance or guaranteed lead quality.
+4. Blocked/dynamic CRM docs are integration risk: first adapter should favor the provider with the clearest docs and smallest object surface.
+
 ## Methodology backlog items
 
 1. Build a jurisdiction matrix for US CAN-SPAM, Canada CASL, UK PECR/UK GDPR, EU ePrivacy/GDPR, and Australia Spam Act: consent basis, B2B exceptions, opt-out timing, sender identity, address/footer, penalties.

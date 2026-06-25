@@ -31,3 +31,5 @@
 3. How should prompt injection from lead messages be isolated from company knowledge and system instructions?
 4. What is the clean interface for replacing deterministic fallback responses with LLM responses while preserving tests?
 5. How should evaluation reports be generated and surfaced in CI?
+6. Which first integration target has the lowest-risk object surface for the prototype: Close lead/contact/activity export, Postmark/SendGrid inbound-email draft queue, or HubSpot custom-object sync after manual docs validation?
+7. What minimal provider-event table fields are enough to make suppression decisions auditable without storing unnecessary raw email content?
