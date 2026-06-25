@@ -21,10 +21,11 @@ What combination of local/private knowledge ingestion, explainable observation s
 - `sources.md` — curated source index.
 - `open-questions.md` — unresolved product, market, technical, compliance, and methodology questions.
 - `fixtures/lead_nurture_eval_cases.jsonl` — seed benchmark cases.
+- `fixtures/kb_documents.jsonl` — synthetic local campaign/policy corpus with stable chunk IDs for retrieval smoke tests.
 
 ## Initial measurable baselines
 
-- Fixture inventory: `research/fixtures/lead_nurture_eval_cases.jsonl` contains seed cases for high-intent, objection, unsubscribe, sensitive inference, and prompt-injection scenarios.
+- Fixture inventory: `research/fixtures/lead_nurture_eval_cases.jsonl` contains seed cases for high-intent, objection, unsubscribe, sensitive inference, and prompt-injection scenarios; `research/fixtures/kb_documents.jsonl` contains the matching 17-document canned KB corpus for local retrieval checks.
 - Evaluation dimensions: retrieval, observation extraction, lead score/action, response groundedness, compliance, and business-outcome proxies.
 - Evidence standard: primary/company/docs sources first; mark blocked, dynamic, or quote-only pages explicitly.
 

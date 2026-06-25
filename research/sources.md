@@ -12,6 +12,9 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - scikit-learn nDCG — https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ndcg_score.html — retrieval ranking metric.
 - scikit-learn average precision — https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html — ranking/classification metric.
 - Google ML classification metrics — https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall — precision/recall explanation for score/action classification.
+- Repo `KnowledgeChunk` model — https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/models.py — primary repo source for fixture row shape (`id`, `source`, `text`, `metadata`).
+- Repo TF-IDF retriever — https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/retriever.py — primary repo source for local retrieval behavior and `KnowledgeBase.search` smoke-test harness.
+- Repo metadata categorizer — https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/categorizer.py — primary repo source for searchable metadata fields mirrored in the canned KB fixture.
 
 ## Compliance and email constraints
 

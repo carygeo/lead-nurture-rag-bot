@@ -265,3 +265,38 @@ Actionable insights / open questions:
 Confidence: Medium-high for cited public positioning and local fixture validity; medium for differentiation because it is a demo hypothesis, not buyer-demand proof. Apollo AI-sales-agent URL is blocked/broken (404).
 
 Next run recommendation: Rotate back to competitive matrix or evaluation harness by adding a minimal canned campaign corpus and a deterministic fixture-runner that checks required/forbidden facts and compliance flags.
+
+## 2026-06-24 23:19 EDT — Evaluation harness canned KB fixture
+
+Focus question: What is the smallest local campaign/policy corpus that lets the existing lead-nurture eval cases exercise retrieval deterministically before a full benchmark runner exists?
+
+New findings:
+
+- The current eval cases already reference 17 expected chunk IDs, but there was no matching canned KB fixture file; retrieval assertions could not be run end-to-end from research fixtures alone.
+- The repo's `KnowledgeChunk` model and TF-IDF `KnowledgeBase` are sufficient for a no-service smoke test when a JSONL fixture is loaded directly into `kb.chunks` and indexed with `_reindex()`.
+- Mirroring `metadata_to_search_text` fields in the fixture metadata improves retrieval stability because the local retriever indexes both document text and metadata terms.
+- A 17-document synthetic BuildCo AI corpus can cover all 12 existing eval cases across product overview, construction pay-app workflow, lien waiver risk, pricing/demo, sales handoff, approved claims, opt-out/suppression, provider events, email footer/CAN-SPAM, human review, and case-study policy.
+
+Key sources:
+
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/models.py
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/retriever.py
+- https://github.com/carygeo/lead-nurture-rag-bot/blob/main/src/lead_nurture_rag/categorizer.py
+- Local docs reviewed: `docs/lead-scoring-and-observations.md`, `docs/email-integration-roadmap.md`, `research/evaluation-methodology.md`, and `research/benchmark-fixtures.md`.
+
+Measurable output produced:
+
+- Added `research/fixtures/kb_documents.jsonl` with 17 valid JSONL `KnowledgeChunk`-shaped rows.
+- Updated `research/benchmark-fixtures.md` with the canned-KB slice, fixture design notes, and smoke-test command.
+- Updated `research/README.md` and `research/sources.md` so the fixture inventory and source index mention the canned KB corpus and repo implementation sources.
+- Validation result: `valid_kb_documents=17`, `valid_jsonl_cases=12`, `retrieval_hit_rate_at_3=12/12` using the current TF-IDF retriever.
+
+Actionable insights / open questions:
+
+- Add a real `scripts.evaluate` or `scripts/research_smoke_eval.py` next so this validation command becomes versioned executable code rather than a copied one-off snippet.
+- Add exact required/forbidden response checks after retrieval smoke tests pass; the canned KB now gives those checks source text to inspect.
+- Treat the synthetic BuildCo AI facts as fixture-only demo knowledge, not evidence of a real product, legal compliance, deliverability performance, or buyer demand.
+
+Confidence: High that the JSONL fixture matches current repo model fields and gives 12/12 retrieval hit@3 on existing cases; medium that this remains stable after future chunking/retriever changes because the smoke test loads pre-chunked documents directly.
+
+Next run recommendation: Continue the evaluation-harness slice by committing a tiny executable evaluation script that validates JSONL, checks expected retrieval hit@k, and optionally verifies forbidden/required facts against generated responses.

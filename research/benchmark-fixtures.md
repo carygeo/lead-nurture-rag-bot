@@ -177,3 +177,55 @@ These are not lead-nurture-specific, but useful for validating retrieval/evaluat
 ## Initial local fixture examples
 
 See `research/fixtures/lead_nurture_eval_cases.jsonl` for seed cases covering high intent, objection, unsubscribe, sensitive inference, and prompt injection.
+
+### Canned KB fixture slice — 2026-06-24
+
+Focused slice: turn the fixture ideas into a runnable local retrieval harness seed, rather than only labeled lead-message cases.
+
+New fixture file:
+
+- `research/fixtures/kb_documents.jsonl` — 17 stable `KnowledgeChunk`-shaped documents whose IDs match the `expected_retrieval.chunk_ids` already used by the 12 lead-nurture eval cases.
+
+Design notes grounded in the repo implementation:
+
+- The fixture rows use the current `KnowledgeChunk` fields from `src/lead_nurture_rag/models.py`: `id`, `source`, `text`, and `metadata`.
+- Metadata mirrors the fields indexed by `metadata_to_search_text` in `src/lead_nurture_rag/categorizer.py`: `company_name`, `page_type`, `intent_stage`, `topics`, `personas`, `industries`, and `questions_answered`.
+- The document set intentionally covers every retrieval ID currently referenced by `lead_nurture_eval_cases.jsonl`: product overview, construction pay apps, workflow/lien-waiver risk, pricing/demo, sales handoff, approved claims, unsubscribe/suppression/provider events, email footer/CAN-SPAM, human review, and case-study policy.
+- Because these are synthetic local fixtures, business/product claims in the fixture corpus are **not market evidence**. They are approved demo facts and guardrails for testing retrieval, response grounding, forbidden-claim checks, and compliance-gated draft behavior.
+
+Smoke-test command used in this slice:
+
+```bash
+uv run python - <<'PY'
+import json
+from pathlib import Path
+from lead_nurture_rag.models import KnowledgeChunk
+from lead_nurture_rag.retriever import KnowledgeBase
+
+kb = KnowledgeBase()
+for line in Path('research/fixtures/kb_documents.jsonl').read_text().splitlines():
+    if line.strip():
+        chunk = KnowledgeChunk(**json.loads(line))
+        kb.chunks[chunk.id] = chunk
+kb._reindex()
+
+case_count = 0
+hit3 = 0
+for line in Path('research/fixtures/lead_nurture_eval_cases.jsonl').read_text().splitlines():
+    if not line.strip():
+        continue
+    case = json.loads(line)
+    case_count += 1
+    expected = set(case['expected_retrieval']['chunk_ids'])
+    query = ' '.join([case.get('message', ''), ' '.join(case['expected_retrieval'].get('topics', []))])
+    got = [hit.id for hit in kb.search(query, k=3)]
+    if set(got).intersection(expected):
+        hit3 += 1
+
+print(f'valid_kb_documents={len(kb.chunks)}')
+print(f'valid_jsonl_cases={case_count}')
+print(f'retrieval_hit_rate_at_3={hit3}/{case_count}')
+PY
+```
+
+Observed result on 2026-06-24: `valid_kb_documents=17`, `valid_jsonl_cases=12`, `retrieval_hit_rate_at_3=12/12`.
