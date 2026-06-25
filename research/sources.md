@@ -32,6 +32,7 @@ Curated source index for lead-nurture RAG bot research. Keep entries concise and
 - Postmark Webhooks overview — https://postmarkapp.com/developer/webhooks/webhooks-overview — official webhook mechanism for bounce, delivery, click/open, spam complaint, subscription-change, and inbound events.
 - Amazon SES event notifications — https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html — official bounce/complaint notification and sending-event monitoring options.
 - Mailgun tracking messages docs — https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/ — official tracking docs for unsubscribes, spam complaints, failures, deliveries, webhooks, and events.
+- ComplianceGate schema slice sources — https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business ; https://support.google.com/a/answer/81126 ; https://senders.yahooinc.com/best-practices/ ; https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event ; https://postmarkapp.com/developer/webhooks/webhooks-overview ; https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html ; https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/ — 2026-06-25 source set for proposed local `ComplianceGate` result schema, ambiguous opt-out fixture, and stale-approval fixture. Exact schema names are design hypotheses; cited constraints support opt-out, footer, provider event, and bounce/complaint guardrails.
 
 ## Competitive landscape: sales/GTM platforms
 

@@ -316,3 +316,20 @@ Actionable fixture findings:
 - The false sensitive-demographic inference count is currently `0` on these fixtures for age/gender, which supports the existing explicit-self-disclosure policy for sensitive fields; this does not prove broader privacy compliance.
 
 Unverified/hypothesis: approximate multi-label recall uses token-overlap matching for labels such as “budget approved” vs actual term “budget.” It is a pragmatic smoke metric, not a replacement for a full extraction scorer with normalized ontology labels.
+
+### ComplianceGate schema fixture slice — 2026-06-25
+
+Focused slice: encode two additional pre-send/non-send cases that exercise the proposed `ComplianceGate` result shape without requiring a real email provider or sender API.
+
+New JSONL cases added to `research/fixtures/lead_nurture_eval_cases.jsonl`:
+
+- `compliance_ambiguous_opt_out_001` — a lead says “take me off this list for now” without using the exact word “unsubscribe.” Expected local gate behavior: `send_allowed=false`, `requires_human_review=true`, and `suppression_reason=ambiguous_opt_out` until a human/process resolves preferences.
+- `compliance_stale_approval_after_reply_001` — a draft had reviewer approval, but a newer inbound reply arrived before send. Expected local gate behavior: `send_allowed=false`, `requires_human_review=true`, and `missing_required_fields=["fresh_thread_review"]` because approval must be refreshed against the latest thread state.
+
+Verified source basis:
+
+- FTC CAN-SPAM guidance requires opt-out mechanisms, prompt honoring of opt-out requests, and valid physical postal address for commercial messages. Source: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- Gmail and Yahoo sender guidance treat one-click/visible unsubscribe, spam-rate thresholds, and complaint/bounce handling as sender requirements or best practices. Sources: https://support.google.com/a/answer/81126 ; https://senders.yahooinc.com/best-practices/
+- Provider-event docs from SendGrid, Postmark, Amazon SES, and Mailgun show that unsubscribe, bounce, and complaint signals are available as webhook/notification inputs for the future gate. Sources: https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event ; https://postmarkapp.com/developer/webhooks/webhooks-overview ; https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html ; https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+Unverified/hypothesis: “ambiguous opt-out” and “stale approval” thresholds are conservative product-safety policies, not direct legal text. They should be reviewed with counsel and real customer workflows before send-capable automation.

@@ -85,6 +85,51 @@ These field names are local design hypotheses. The source-backed requirement is 
 3. CRM export should carry score/action/rationale as advisory intelligence, not as evidence of legal compliance or guaranteed lead quality.
 4. Blocked/dynamic CRM docs are integration risk: first adapter should favor the provider with the clearest docs and smallest object surface.
 
+## ComplianceGate result schema slice — 2026-06-25
+
+Focus: turn the observed smoke-eval compliance mismatches into a small typed result schema that future email fixtures and an adapter can check before draft generation and again before send.
+
+### Verified source constraints
+
+- **A commercial email opt-out is a hard gate, not a scoring preference.** FTC guidance says commercial email must tell recipients how to opt out, honor opt-out requests promptly, and cannot charge a fee or require more than a reply email or single web page to opt out. It also requires a valid physical postal address in commercial messages. Source: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- **Mailbox-provider requirements make unsubscribe and complaint/bounce handling operationally measurable.** Gmail sender guidelines require one-click unsubscribe for marketing/subscribed messages from bulk senders and a visible unsubscribe link in the body; Google also tells senders to keep reported spam rates below 0.3%. Yahoo's best-practices page similarly requires one-click unsubscribe for marketing/subscribed messages, honoring unsubscribes within 2 days, and keeping spam complaint rates below 0.3%. Sources: https://support.google.com/a/answer/81126 ; https://senders.yahooinc.com/best-practices/
+- **Provider webhook/event docs expose the events that should feed suppression state.** SendGrid documents bounce/blocked, spam report, and unsubscribe event types; Postmark documents bounce/spam-complaint/subscription-change webhooks; Amazon SES says senders must have a system for managing bounces and complaints and can receive bounce/complaint notifications; Mailgun documents tracking for failures, complaints, and unsubscribes. Sources: https://www.twilio.com/docs/sendgrid/for-developers/tracking-events/event ; https://postmarkapp.com/developer/webhooks/webhooks-overview ; https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications.html ; https://documentation.mailgun.com/docs/mailgun/user-manual/tracking-messages/
+
+### Proposed local schema (hypothesis, not yet implemented)
+
+The first implementation can keep this separate from the current three-value chat `next_action` enum:
+
+```json
+{
+  "gate_stage": "pre_draft | pre_send",
+  "send_allowed": false,
+  "draft_allowed": true,
+  "requires_human_review": true,
+  "compliance_action": "honor_unsubscribe | internal_suppression | block_send | draft_review_block | allow_draft",
+  "blocked_reasons": ["natural_language_opt_out", "missing_unsubscribe_url", "stale_approval"],
+  "suppression_reason": "natural_language_opt_out",
+  "missing_required_fields": ["unsubscribe_url", "postal_address", "reviewer_approval"],
+  "provider_event_types": ["spam_report", "bounce"],
+  "review_requirements": ["reviewer_id", "approval_timestamp", "fresh_thread_check"],
+  "source_policy_urls": ["https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business"]
+}
+```
+
+Design rationale:
+
+- `send_allowed` should be the only field a sender adapter trusts for sendability. A hot lead score or persuasive draft must not override it.
+- `draft_allowed` can remain true for internal remediation notes after a blocker, but any generated text should be routed to an internal queue rather than a recipient.
+- `blocked_reasons` should be machine-readable to support CI fixtures, reviewer UI filters, and auditable CRM notes.
+- `source_policy_urls` should point to the policy basis used by the fixture or gate check; it is evidence context, not a legal-compliance certificate.
+
+### New CI-style invariants to encode in fixtures
+
+1. Ambiguous opt-out language such as “take me off this list for now” should set `send_allowed=false` and require review or suppression resolution before any commercial follow-up.
+2. A prior approval becomes stale if a new inbound reply, opt-out, bounce, complaint, or material thread change arrives after approval; pre-send must re-check the latest lead/thread state.
+3. Provider complaints, hard bounces, and unsubscribe events should be handled before calling the agent for a sales/nurture draft; if an internal acknowledgement is generated, it must not contain demo/pricing/case-study CTAs.
+
+Unverified/hypothesis: exact enum names (`draft_review_block`, `allow_draft`, `fresh_thread_check`) are local design proposals. The verified source-backed requirement is narrower: opt-outs, physical address/unsubscribe, provider complaint/bounce handling, and human review/auditability must be represented before send-capable automation.
+
 ## Methodology backlog items
 
 1. Build a jurisdiction matrix for US CAN-SPAM, Canada CASL, UK PECR/UK GDPR, EU ePrivacy/GDPR, and Australia Spam Act: consent basis, B2B exceptions, opt-out timing, sender identity, address/footer, penalties.
